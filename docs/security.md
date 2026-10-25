@@ -11,3 +11,5 @@ Safety controls and the tests that cover them. One line per control.
 - File reads are size-bounded; binary files are refused; errors never contain absolute paths. (Chunk 2A)
 - Clone allows only `https://github.com/<owner>/<repo>`, uses a fixed argument list with `--`, no shell, with a timeout. (Chunk 2A)
 - GitHub client is read-only, validates owner/repo/number before any request, caps issue and comment size, rejects pull requests, and never logs the token. Tested. (Chunk 2B)
+- `search_code` runs ripgrep with a fixed argument list and no shell; flag-like queries are plain text; query, match, snippet and time limits; symlinks not followed. Tested with both backends. (Chunk 2C)
+- Prompt-injection text in fixture files is returned as plain data and never acted on. Tested. (Chunk 2C)

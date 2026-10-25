@@ -8,6 +8,7 @@ license = { text = "MIT" }
 
 [tool.ruff]
 line-length = 100
+extend-exclude = ["tests/fixtures"]
 target-version = "py311"
 
 [tool.ruff.lint]
@@ -16,6 +17,7 @@ select = ["E", "F", "I", "B", "UP"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+norecursedirs = ["fixtures", ".venv"]
 asyncio_mode = "auto"
 addopts = "-m 'not live and not docker'"
 markers = [
