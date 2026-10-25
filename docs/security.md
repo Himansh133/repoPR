@@ -10,3 +10,4 @@ Safety controls and the tests that cover them. One line per control.
 - All file access goes through `Workspace.resolve`: rejects absolute paths, `..`, null bytes, and symlink escapes (file and directory). Tested. (Chunk 2A)
 - File reads are size-bounded; binary files are refused; errors never contain absolute paths. (Chunk 2A)
 - Clone allows only `https://github.com/<owner>/<repo>`, uses a fixed argument list with `--`, no shell, with a timeout. (Chunk 2A)
+- GitHub client is read-only, validates owner/repo/number before any request, caps issue and comment size, rejects pull requests, and never logs the token. Tested. (Chunk 2B)
