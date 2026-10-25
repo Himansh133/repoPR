@@ -1,0 +1,29 @@
+"""Settings loaded from environment variables and an optional `.env` file."""
+
+from decimal import Decimal
+
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    """RepoPilot configuration.
+
+    Secrets are `SecretStr`, so they never show up in `repr` or logs.
+    `gmi_model` has no default on purpose: the model ID is never hardcoded.
+    Prices have no default either; if they are missing, cost is reported as unknown.
+    """
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    gmi_api_key: SecretStr
+    gmi_model: str
+    gmi_base_url: str = "https://api.gmi-serving.com/v1"
+    github_token: SecretStr | None = None
+
+    llm_timeout_s: float = 60
+    llm_max_retries: int = 3
+    max_output_tokens: int = 1200
+
+    price_in_per_m: Decimal | None = None
+    price_out_per_m: Decimal | None = None
