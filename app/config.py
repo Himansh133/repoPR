@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     llm_timeout_s: float = 60
     llm_max_retries: int = 3
     max_output_tokens: int = 1200
+    max_file_bytes: int = 50_000
 
     price_in_per_m: Decimal | None = None
     price_out_per_m: Decimal | None = None
