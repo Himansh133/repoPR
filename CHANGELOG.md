@@ -9,4 +9,5 @@
 - `app/workspace.py`: safe repo root, path resolver, bounded file reader, GitHub clone with URL allowlist.
 - `app/github.py`: read-only GitHub client for issues, comments and repo info, with size caps and typed errors.
 - `app/tools/`: `search_code` (literal, bounded, ripgrep with Python fallback) and `read_file`; fixture repo with a bug and prompt-injection text.
+- `app/tools/schemas.py` and `dispatcher.py`: validated tool calls with an allowlist, argument and result limits, a 10-file read limit, and untrusted-content wrapping.
 - Live smoke tests (completion and tool-calling probe), skipped by default.

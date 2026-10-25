@@ -13,3 +13,5 @@ Safety controls and the tests that cover them. One line per control.
 - GitHub client is read-only, validates owner/repo/number before any request, caps issue and comment size, rejects pull requests, and never logs the token. Tested. (Chunk 2B)
 - `search_code` runs ripgrep with a fixed argument list and no shell; flag-like queries are plain text; query, match, snippet and time limits; symlinks not followed. Tested with both backends. (Chunk 2C)
 - Prompt-injection text in fixture files is returned as plain data and never acted on. Tested. (Chunk 2C)
+- Dispatcher allowlists tools, caps argument size (4 KB), rejects non-JSON-object, missing, extra and wrongly typed arguments, limits distinct files read (10) and result size. Errors go back to the model and never raise. Tested. (Chunk 3A)
+- Tool output is wrapped in `<untrusted_repo_content>`, and tags inside file text are escaped so a file cannot break out. Tested. (Chunk 3A)
