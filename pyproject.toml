@@ -1,0 +1,24 @@
+[project]
+name = "repopilot"
+version = "0.1.0"
+description = "AI agent that takes a GitHub issue, proposes a patch, and proves it with tests."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+addopts = "-m 'not live and not docker'"
+markers = [
+    "live: calls the real GMI Cloud API (run only on request: pytest -m live)",
+    "docker: needs a running Docker daemon (run with: pytest -m docker)",
+]
