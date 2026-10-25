@@ -15,3 +15,7 @@ Safety controls and the tests that cover them. One line per control.
 - Prompt-injection text in fixture files is returned as plain data and never acted on. Tested. (Chunk 2C)
 - Dispatcher allowlists tools, caps argument size (4 KB), rejects non-JSON-object, missing, extra and wrongly typed arguments, limits distinct files read (10) and result size. Errors go back to the model and never raise. Tested. (Chunk 3A)
 - Tool output is wrapped in `<untrusted_repo_content>`, and tags inside file text are escaped so a file cannot break out. Tested. (Chunk 3A)
+- Plans are accepted only if every cited file was actually read (checked by the backend, not the prompt). Tested. (Chunk 3B)
+- The loop is finite: step limit, token budget, timeout, abort after 3 invalid calls in a row. Tested. (Chunk 3B)
+- Issue text is wrapped as untrusted and cannot close its wrapper; a model that follows injected instructions (asks for a shell tool) is refused by the dispatcher and the run continues. Tested. (Chunk 3B)
+- Events store names, counts and sizes only, never file contents or model text. Tested. (Chunk 3B)

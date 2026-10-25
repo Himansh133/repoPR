@@ -26,5 +26,11 @@ class Settings(BaseSettings):
     max_output_tokens: int = 1200
     max_file_bytes: int = 50_000
 
+    agent_max_steps: int = 12
+    agent_max_total_tokens: int = 30_000
+    agent_timeout_s: float = 120
+    agent_max_invalid_calls: int = 3
+    max_files_per_investigation: int = 10
+
     price_in_per_m: Decimal | None = None
     price_out_per_m: Decimal | None = None

@@ -38,22 +38,18 @@ TOOL_DESCRIPTIONS = {
 }
 
 
+def function_spec(name: str, description: str, model: type[BaseModel]) -> dict[str, Any]:
+    """Build one OpenAI function-calling spec from a Pydantic model."""
+    schema = model.model_json_schema()
+    schema.pop("title", None)
+    for prop in schema.get("properties", {}).values():
+        prop.pop("title", None)
+    return {
+        "type": "function",
+        "function": {"name": name, "description": description, "parameters": schema},
+    }
+
+
 def tool_specs(names: list[str]) -> list[dict[str, Any]]:
     """Return OpenAI function-calling specs for the given tool names (KeyError if unknown)."""
-    specs = []
-    for name in names:
-        schema = TOOL_MODELS[name].model_json_schema()
-        schema.pop("title", None)
-        for prop in schema.get("properties", {}).values():
-            prop.pop("title", None)
-        specs.append(
-            {
-                "type": "function",
-                "function": {
-                    "name": name,
-                    "description": TOOL_DESCRIPTIONS[name],
-                    "parameters": schema,
-                },
-            }
-        )
-    return specs
+    return [function_spec(n, TOOL_DESCRIPTIONS[n], TOOL_MODELS[n]) for n in names]
