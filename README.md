@@ -13,3 +13,4 @@ An AI agent that takes a GitHub issue, proposes a minimal patch, and proves it w
 | 2 (C) | search_code and read_file tools | Done | 134 total (109 without ripgrep installed) |
 | 3 (A) | Tool schemas and dispatcher | Done | 197 total (144 without ripgrep installed) |
 | 3 (B) | State machine and investigation loop | Done | 243 total (171 without ripgrep installed) |
+| 4 (A) | Patch validation and working copy | Done | 295 total (223 without ripgrep installed) |

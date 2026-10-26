@@ -19,3 +19,5 @@ Safety controls and the tests that cover them. One line per control.
 - The loop is finite: step limit, token budget, timeout, abort after 3 invalid calls in a row. Tested. (Chunk 3B)
 - Issue text is wrapped as untrusted and cannot close its wrapper; a model that follows injected instructions (asks for a shell tool) is refused by the dispatcher and the run continues. Tested. (Chunk 3B)
 - Events store names, counts and sizes only, never file contents or model text. Tested. (Chunk 3B)
+- Patches are parsed strictly: size and file limits; no deletes, renames, mode changes or binary patches; no `..`, absolute, backslash, `.git` or `.github` paths; no symlink paths. Tested. (Chunk 4A)
+- Patches are applied only in a temp clone, never in the user's checkout; git hooks are disabled and a planted hook does not run. Tested. (Chunk 4A)

@@ -12,4 +12,5 @@
 - `app/tools/schemas.py` and `dispatcher.py`: validated tool calls with an allowlist, argument and result limits, a 10-file read limit, and untrusted-content wrapping.
 - `app/agent/`: state machine, in-memory event log, prompts, and the read-only investigation loop with step, token, time and invalid-call budgets; evidence-backed plans via `submit_plan`.
 - `tests/fakes.py`: scripted fake LLM.
+- `app/patch.py`: strict unified-diff parser, temp clone on a new branch, `git apply --check` then apply and commit, with hooks off.
 - Live smoke tests (completion and tool-calling probe), skipped by default.
