@@ -1,0 +1,2 @@
+[console_scripts]
+repopilot = app.cli:main

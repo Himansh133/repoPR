@@ -1,0 +1,29 @@
+Metadata-Version: 2.4
+Name: repopilot
+Version: 0.1.0
+Summary: AI agent that takes a GitHub issue, proposes a patch, and proves it with tests.
+License: MIT
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Dynamic: license-file
+
+# RepoPilot
+
+An AI agent that takes a GitHub issue, proposes a minimal patch, and proves it with tests in a Docker sandbox. It never creates a pull request without explicit approval.
+
+## Project status
+
+| Chunk | Name | Status | Tests |
+|---|---|---|---|
+| 0 | Project scaffold | Done | 2 |
+| 1 | Config and GMI client | Mocked tests done, live smoke test pending | 22 (+2 live) |
+| 2 (A) | Workspace and path safety | Done | 63 total |
+| 2 (B) | GitHub issue fetching | Done | 84 total |
+| 2 (C) | search_code and read_file tools | Done | 134 total (109 without ripgrep installed) |
+| 3 (A) | Tool schemas and dispatcher | Done | 197 total (144 without ripgrep installed) |
+| 3 (B) | State machine and investigation loop | Done | 243 total (171 without ripgrep installed) |
+| 4 (A) | Patch validation and working copy | Done | 295 total (223 without ripgrep installed) |
+| 4 (B) | Docker sandbox | Done | 326 total (+9 Docker, +2 live) |
+| 4 (C) | Test run, repair loop and report | Done | 366 total (+11 Docker, +2 live) |
+| 5 (A) | SQLite persistence and usage tracking | Done | 390 total (+11 Docker, +2 live) |

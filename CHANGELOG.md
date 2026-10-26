@@ -18,4 +18,6 @@
 - `app/report.py`: plain-text report separating changes, test results and unresolved items.
 - `app/db.py`: SQLite persistence for runs, events, patches, test results, usage and approvals; exact cost tracking; daily run and spend limits.
 - `app/paths.py`: shared cache directory helper.
+- `app/cli.py`: `repopilot run | runs | show | usage`, exit codes per final status, daily-limit checks, `--issue-file`, `--cleanup`; console script.
+- `docs/live-testing.md`: steps for the first real GMI run.
 - Live smoke tests (completion and tool-calling probe), skipped by default.
