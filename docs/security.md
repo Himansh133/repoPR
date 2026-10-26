@@ -31,3 +31,4 @@ Safety controls and the tests that cover them. One line per control.
 - The database file is private (0600). Test logs and file contents are never stored; patch diffs are, bounded to 20 KB. Tested. (Chunk 5A)
 - Daily run limit (5) and daily spend cap block new runs; runs that crash still count; unpriced runs are blocked unless explicitly allowed. Tested. (Chunk 5A)
 - CLI: daily limits are checked before any clone, GitHub call or model call; only `https://github.com/<owner>/<repo>` URLs are cloned; secrets never appear in output; a crash is recorded, not hidden. Tested. (Chunk 5B)
+- Eval: benchmark entries are validated (ids, dir: paths must stay inside the project, GitHub URLs only with a hex commit fetched by fixed git commands); `--max-runs` guards against accidental large runs; the daily spend cap applies and stops remaining runs; the benchmark hash is saved with the results. Tested. (Chunk 5C)

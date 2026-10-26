@@ -87,7 +87,7 @@ async def go(source, llm, sandbox, budgets=None, **kw):
             shutil.rmtree(result.workdir, ignore_errors=True)
 
 
-# --- settings ------------------------------------------------------------------------------
+# --- settings -----------------------------------------------------------------
 
 def test_run_budgets_from_settings(monkeypatch):
     monkeypatch.setenv("GMI_API_KEY", "k")
@@ -97,7 +97,7 @@ def test_run_budgets_from_settings(monkeypatch):
     assert (b.max_steps, b.max_tokens, b.timeout_s, b.max_repairs) == (24, 60_000, 300, 1)
 
 
-# --- passing run ---------------------------------------------------------------------------
+# --- passing run --------------------------------------------------------------
 
 async def test_passes_on_the_first_try(source):
     llm = FakeLLM([*investigate_script(), propose(CART, RIGHT)])
@@ -127,7 +127,7 @@ async def test_passes_on_the_first_try(source):
     ]
 
 
-# --- repair --------------------------------------------------------------------------------
+# --- repair -------------------------------------------------------------------
 
 async def test_fail_then_repair_then_pass(source):
     big_log = "E noisy line\n" * 2000 + "E AssertionError: assert 1 == 0"
@@ -172,7 +172,7 @@ async def test_fails_after_two_repairs(source):
     assert "2 repair" in result.reason
 
 
-# --- aborts --------------------------------------------------------------------------------
+# --- aborts -------------------------------------------------------------------
 
 async def test_sandbox_violation_aborts_immediately(source):
     llm = FakeLLM([*investigate_script(), propose(CART, RIGHT), propose(RIGHT, RIGHT)])
@@ -258,7 +258,7 @@ async def test_timeout_during_repair_loop(source):
     assert len(llm.calls) == 3
 
 
-# --- honest statuses -----------------------------------------------------------------------
+# --- honest statuses ----------------------------------------------------------
 
 async def test_baseline_already_passing_is_inconclusive(source):
     llm = FakeLLM([*investigate_script(), propose(CART, RIGHT)])
@@ -283,7 +283,7 @@ async def test_patch_that_removes_all_tests_is_inconclusive_not_passed(source):
     assert result.status is RunStatus.INCONCLUSIVE
 
 
-# --- the model's side ------------------------------------------------------------------------
+# --- the model's side ---------------------------------------------------------
 
 async def test_invalid_patch_goes_back_to_the_model(source):
     bad = reply(tool_call("propose_patch", {"diff": make_diff("../evil.py", "a\n", "b\n")}, "bad"))

@@ -117,7 +117,7 @@ def db_of(tmp_path):
     return Database(tmp_path / "cli.db")
 
 
-# --- slug parsing -------------------------------------------------------------------------------
+# --- slug parsing -------------------------------------------------------------
 
 @pytest.mark.parametrize(
     "text,expected",
@@ -136,7 +136,7 @@ def test_parse_github_slug(text, expected):
     assert parse_github_slug(text) == expected
 
 
-# --- run: outcomes and exit codes -------------------------------------------------------------
+# --- run: outcomes and exit codes ---------------------------------------------
 
 def test_successful_run_prints_report_and_saves_everything(source, issue_file, tmp_path):
     code, out, err = run_cli(args(source, issue_file), good_run_deps())
@@ -199,7 +199,7 @@ def test_sandbox_error_is_an_aborted_run(source, issue_file, tmp_path):
     assert db_of(tmp_path).get_run(1).status == "aborted"
 
 
-# --- run: getting the issue ----------------------------------------------------------------------
+# --- run: getting the issue ---------------------------------------------------
 
 def test_issue_is_fetched_from_github_using_the_origin_remote(source):
     gh = FakeGitHub()
@@ -246,7 +246,7 @@ def test_bad_issue_file(source, tmp_path):
     assert code == 5 and "title" in err
 
 
-# --- run: the repo argument ---------------------------------------------------------------------
+# --- run: the repo argument ---------------------------------------------------
 
 def test_repo_that_does_not_exist(tmp_path, issue_file):
     code, _, err = run_cli(args(tmp_path / "nope", issue_file), make_deps())
@@ -290,7 +290,7 @@ def test_non_github_url_rejected(issue_file):
     assert code == 5 and "github" in err.lower()
 
 
-# --- configuration and budgets ------------------------------------------------------------------
+# --- configuration and budgets ------------------------------------------------
 
 def test_missing_configuration_is_a_clear_message(source, issue_file, monkeypatch):
     monkeypatch.delenv("GMI_API_KEY")
@@ -347,7 +347,7 @@ def test_llm_error_in_the_run_is_aborted_not_a_crash(source, issue_file):
     assert code == 4 and "Status: ABORTED" in out and issubclass(LLMError, Exception)
 
 
-# --- other commands ------------------------------------------------------------------------------
+# --- other commands -----------------------------------------------------------
 
 def test_runs_show_and_usage(source, issue_file, tmp_path):
     run_cli(args(source, issue_file, "--cleanup"), good_run_deps())
@@ -387,3 +387,79 @@ def test_bad_arguments_exit_with_argparse_code(source):
 def test_fail_name_constant_is_used_in_reports(source, issue_file):
     code, out, _ = run_cli(args(source, issue_file, "--cleanup"), good_run_deps())
     assert FAIL_NAME in out and reply  # baseline failure appears in the test results
+
+
+# --- eval and compare ---------------------------------------------------------
+
+def eval_deps(scripts, sandbox_script=None):
+    from tests.test_evals import AVG, good_llm
+
+    deps = Deps(settings=lambda: Settings(_env_file=None))
+    deps.llm = lambda s: (scripts.get(s.gmi_model) or good_llm(AVG))
+    deps.sandbox = lambda s: FakeSandbox(*(sandbox_script or (FAILING, PASSING)))
+    deps.github = lambda s: FakeGitHub()
+    return deps
+
+
+def eval_args(tmp_path, *extra, models="m1,m2"):
+    from tests.test_evals import BENCH, ROOT
+
+    return ["eval", "--models", models, "--issues", str(BENCH),
+            "--out", str(tmp_path / "evalout"), "--base-dir", str(ROOT), *extra]
+
+
+def test_eval_runs_every_model_and_prints_the_comparison(tmp_path):
+    from tests.test_evals import BENCH, load_benchmark
+
+    first_only = tmp_path / "one.jsonl"
+    first_only.write_text(BENCH.read_text().splitlines()[0] + "\n")
+    argv = eval_args(tmp_path)
+    argv[argv.index(str(BENCH))] = str(first_only)
+    code, out, err = run_cli(argv, eval_deps({}))
+    assert code == 0, err
+    assert "Planned 2 runs" in out
+    assert "| m1 |" in out and "| m2 |" in out and "Resolved" in out
+    assert (tmp_path / "evalout" / "comparison.md").exists()
+    assert (tmp_path / "evalout" / "m2" / "avg-price-empty-cart" / "patch.diff").exists()
+    db = db_of(tmp_path)
+    assert [r.model for r in reversed(db.list_runs())] == ["m1", "m2"]
+    assert load_benchmark(BENCH)  # the shipped file is untouched
+
+
+def test_eval_refuses_too_many_runs(tmp_path):
+    code, out, err = run_cli(eval_args(tmp_path, "--max-runs", "2"), eval_deps({}))
+    assert code == 5 and "max-runs" in err
+    assert not (tmp_path / "evalout").exists()  # nothing ran
+
+
+def test_eval_bad_inputs(tmp_path):
+    argv = eval_args(tmp_path)
+    argv[argv.index("--issues") + 1] = str(tmp_path / "nope.jsonl")
+    code, _, err = run_cli(argv, eval_deps({}))
+    assert code == 5 and "not found" in err
+    code, _, err = run_cli(eval_args(tmp_path, models=" , "), eval_deps({}))
+    assert code == 5 and "--models" in err
+
+
+def test_eval_needs_prices_unless_allowed(tmp_path, monkeypatch):
+    monkeypatch.delenv("PRICE_IN_PER_M")
+    monkeypatch.delenv("PRICE_OUT_PER_M")
+    code, _, err = run_cli(eval_args(tmp_path, models="m1"), eval_deps({}))
+    assert code == 5 and "PRICE_IN_PER_M" in err
+
+
+def test_compare_prints_saved_results(tmp_path):
+    from tests.test_evals import BENCH
+
+    one = tmp_path / "one.jsonl"
+    one.write_text(BENCH.read_text().splitlines()[0] + "\n")
+    argv = eval_args(tmp_path, models="m1")
+    argv[argv.index(str(BENCH))] = str(one)
+    assert run_cli(argv, eval_deps({}))[0] == 0
+    code, out, _ = run_cli(["compare", str(tmp_path / "evalout")], make_deps())
+    assert code == 0 and "| m1 |" in out and "100.0%" in out
+
+
+def test_compare_missing_results(tmp_path):
+    code, _, err = run_cli(["compare", str(tmp_path / "nothing")], make_deps())
+    assert code == 5 and "results" in err

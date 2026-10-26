@@ -15,6 +15,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from app.agent.events import AgentEvent
 from app.agent.fix import RunResult
 from app.llm import calculate_cost
 
@@ -91,6 +92,30 @@ CREATE TABLE approvals (
 );
 CREATE INDEX idx_runs_started ON runs(started_at);
 """
+
+
+@dataclass(frozen=True)
+class UsageSummary:
+    """Per-call costs for one run. `total` is None if any call's cost is unknown."""
+
+    calls: list[tuple[dict, Decimal | None]]
+    total: Decimal | None
+    estimated: bool  # the provider omitted token usage for at least one call
+
+
+def summarize_usage(
+    events: list[AgentEvent], prices: tuple[Decimal | None, Decimal | None]
+) -> UsageSummary:
+    """Work out the cost of each `llm_call` event and the run total."""
+    calls = []
+    for event in events:
+        if event.kind != "llm_call":
+            continue
+        d = event.data
+        calls.append((d, calculate_cost(d["input_tokens"], d["output_tokens"], *prices)))
+    known = [c for _, c in calls if c is not None]
+    total = sum(known, Decimal(0)) if calls and len(known) == len(calls) else None
+    return UsageSummary(calls, total, any(d.get("usage_missing") for d, _ in calls))
 
 
 class BudgetBlocked(Exception):
@@ -192,16 +217,8 @@ class Database:
     ) -> RunRecord:
         """Save a finished run with its events, patches, test results and usage."""
         model = self._conn.execute("SELECT model FROM runs WHERE id=?", (run_id,)).fetchone()[0]
-        usage = []
-        for event in result.events:
-            if event.kind != "llm_call":
-                continue
-            d = event.data
-            cost = calculate_cost(d["input_tokens"], d["output_tokens"], *prices)
-            usage.append((d, cost))
-        known = [c for _, c in usage if c is not None]
-        total = sum(known, Decimal(0)) if usage and len(known) == len(usage) else None
-        estimated = any(d.get("usage_missing") for d, _ in usage)
+        summary = summarize_usage(result.events, prices)
+        usage, total, estimated = summary.calls, summary.total, summary.estimated
 
         with self._conn:
             c = self._conn

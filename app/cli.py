@@ -29,6 +29,14 @@ from app.agent.fix import RunBudgets, RunStatus, run_issue
 from app.agent.investigate import LLM
 from app.config import Settings
 from app.db import BudgetBlocked, Database
+from app.evals import (
+    EvalError,
+    comparison_table,
+    load_benchmark,
+    load_results,
+    metrics_by_model,
+    run_eval,
+)
 from app.github import GitHubClient, GitHubError, GitHubRateLimit, Issue
 from app.llm import LLMClient
 from app.patch import PatchError
@@ -130,6 +138,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     usage = sub.add_parser("usage", help="token and cost totals")
     usage.add_argument("--today", action="store_true")
+
+    ev = sub.add_parser("eval", help="run a benchmark against one or more models")
+    ev.add_argument("--models", required=True, help="comma-separated model IDs")
+    ev.add_argument("--issues", default="evals/benchmark_issues.jsonl")
+    ev.add_argument("--out", help="results folder (default evals/results/<timestamp>)")
+    ev.add_argument("--base-dir", default=".", help="folder that 'dir:' repos are relative to")
+    ev.add_argument("--max-runs", type=_issue_number, default=30,
+                    help="refuse to start if models x issues is larger than this")
+    ev.add_argument("--allow-unpriced", action="store_true")
+
+    cmp_ = sub.add_parser("compare", help="print the comparison table of saved eval results")
+    cmp_.add_argument("results_dir")
     return parser
 
 
@@ -148,6 +168,10 @@ def main(
     try:
         if args.command == "run":
             return _cmd_run(args, deps, out, err)
+        if args.command == "eval":
+            return _cmd_eval(args, deps, out)
+        if args.command == "compare":
+            return _cmd_compare(args, out)
         return _cmd_read(args, deps, out)
     except CliError as exc:
         print(f"error: {exc}", file=err)
@@ -306,6 +330,69 @@ def _cmd_run(args, deps: Deps, out: TextIO, err: TextIO) -> int:
         if clone_dir is not None:
             shutil.rmtree(clone_dir, ignore_errors=True)
         db.close()
+
+
+def _cmd_eval(args, deps: Deps, out: TextIO) -> int:
+    settings = _load_settings(deps)
+    prices = (settings.price_in_per_m, settings.price_out_per_m)
+    if any(p is None for p in prices) and not (settings.allow_unpriced or args.allow_unpriced):
+        raise CliError(
+            "Prices are not set (PRICE_IN_PER_M, PRICE_OUT_PER_M), so cost cannot be measured. "
+            "Set them, or pass --allow-unpriced."
+        )
+    models = list(dict.fromkeys(m.strip() for m in args.models.split(",") if m.strip()))
+    if not models:
+        raise CliError("--models needs at least one model ID")
+    try:
+        issues = load_benchmark(args.issues)
+    except EvalError as exc:
+        raise CliError(str(exc)) from None
+    planned = len(models) * len(issues)
+    if planned > args.max_runs:
+        raise CliError(
+            f"Planned {planned} runs ({len(models)} models x {len(issues)} issues) is more than "
+            f"--max-runs {args.max_runs}. Raise it if you mean it."
+        )
+    budgets = RunBudgets.from_settings(settings)
+    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+    out_dir = Path(args.out) if args.out else Path("evals") / "results" / stamp
+    print(f"Planned {planned} runs ({len(models)} models x {len(issues)} issues). "
+          f"Each run is capped at {budgets.max_tokens} tokens.", file=out)
+    db = _open_db(deps)
+    try:
+        results = asyncio.run(
+            run_eval(
+                issues,
+                models,
+                lambda model: deps.llm(settings.model_copy(update={"gmi_model": model})),
+                lambda: deps.sandbox(settings),
+                out_dir,
+                budgets,
+                base_dir=Path(args.base_dir),
+                prices=prices,
+                db=db,
+                spend_cap=settings.daily_spend_cap,
+                benchmark_path=Path(args.issues),
+                profile=settings.sandbox_profile,
+            )
+        )
+    finally:
+        db.close()
+    print(comparison_table(metrics_by_model(results)), file=out)
+    if len(results) < planned:
+        print(f"Stopped early: {len(results)} of {planned} runs finished (see meta.json).",
+              file=out)
+    print(f"Results saved to {out_dir}", file=out)
+    return 0
+
+
+def _cmd_compare(args, out: TextIO) -> int:
+    try:
+        results = load_results(args.results_dir)
+    except EvalError as exc:
+        raise CliError(f"No eval results found: {exc}") from None
+    print(comparison_table(metrics_by_model(results)), file=out)
+    return 0
 
 
 def _resolve_repo(args, deps: Deps) -> tuple[Path, tuple[str, str] | None, Path | None]:

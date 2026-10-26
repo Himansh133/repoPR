@@ -20,4 +20,6 @@
 - `app/paths.py`: shared cache directory helper.
 - `app/cli.py`: `repopilot run | runs | show | usage`, exit codes per final status, daily-limit checks, `--issue-file`, `--cleanup`; console script.
 - `docs/live-testing.md`: steps for the first real GMI run.
+- `app/evals.py`, `evals/`: benchmark loader with validation, metrics (resolution, patch test pass, tool-call success, repair success, cost, latency), comparison table, runner with saved artifacts; three seed repos and issues.
+- `repopilot eval` and `repopilot compare`.
 - Live smoke tests (completion and tool-calling probe), skipped by default.

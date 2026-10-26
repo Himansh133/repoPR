@@ -70,7 +70,7 @@ def save(db, result=None, prices=PRICES, model="m1", report="REPORT TEXT"):
     return run_id
 
 
-# --- schema ---------------------------------------------------------------------------------
+# --- schema -------------------------------------------------------------------
 
 def test_schema_is_created_and_reopening_is_safe(tmp_path):
     path = tmp_path / "x.db"
@@ -99,7 +99,7 @@ def test_data_survives_reopen(tmp_path, clock):
     again.close()
 
 
-# --- runs -----------------------------------------------------------------------------------
+# --- runs ---------------------------------------------------------------------
 
 def test_start_run_creates_a_running_row(db):
     run_id = db.start_run("octo/demo", 7, "Crash", "m1")
@@ -141,7 +141,7 @@ def test_fail_run_marks_error(db):
     assert run.status == "error" and "clone" in run.reason
 
 
-# --- child rows -----------------------------------------------------------------------------
+# --- child rows ---------------------------------------------------------------
 
 def test_events_round_trip_in_order(db):
     run_id = save(db)
@@ -180,7 +180,7 @@ def test_test_executions_store_names_and_status_but_not_logs(db):
     assert "SECRET-TEST-LOG" not in dump
 
 
-# --- usage and cost -------------------------------------------------------------------------
+# --- usage and cost -----------------------------------------------------------
 
 def test_usage_records_and_exact_cost(db):
     run_id = save(db)
@@ -220,7 +220,7 @@ def test_totals_for_a_day_and_overall(db, clock):
     assert (everything.input_tokens, everything.output_tokens) == (9000, 1800)
 
 
-# --- daily limits -----------------------------------------------------------------------------
+# --- daily limits -------------------------------------------------------------
 
 def check(db, cap=Decimal("5"), max_runs=5, priced=True, allow_unpriced=False):
     db.check_can_start(cap, max_runs, priced=priced, allow_unpriced=allow_unpriced)
@@ -270,7 +270,7 @@ def test_unpriced_runs_are_blocked_unless_allowed(db):
     check(db, priced=False, allow_unpriced=True)
 
 
-# --- approvals (used by the PR step later) ---------------------------------------------------
+# --- approvals (used by the PR step later) ------------------------------------
 
 def test_approvals_round_trip(db):
     run_id = save(db)
