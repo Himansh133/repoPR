@@ -13,4 +13,5 @@
 - `app/agent/`: state machine, in-memory event log, prompts, and the read-only investigation loop with step, token, time and invalid-call budgets; evidence-backed plans via `submit_plan`.
 - `tests/fakes.py`: scripted fake LLM.
 - `app/patch.py`: strict unified-diff parser, temp clone on a new branch, `git apply --check` then apply and commit, with hooks off.
+- `app/sandbox.py`, `docker/`: Docker sandbox with fixed test profiles, no network, non-root, read-only, resource limits, bounded logs; `docker` integration tests.
 - Live smoke tests (completion and tool-calling probe), skipped by default.

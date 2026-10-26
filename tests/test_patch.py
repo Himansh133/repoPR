@@ -28,6 +28,11 @@ def make_diff(path, old, new, new_file=False):
     )
 
 
+@pytest.fixture(autouse=True)
+def isolated_cache(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+
 @pytest.fixture
 def source(tmp_path):
     root = tmp_path / "source"
@@ -70,6 +75,12 @@ def test_create_makes_separate_clone_on_new_branch(source):
 def test_create_from_non_git_directory_fails(tmp_path):
     with pytest.raises(PatchError):
         WorkingCopy.create(tmp_path, 1)
+
+
+def test_default_work_dir_is_under_the_cache_dir(tmp_path):
+    from app.patch import default_work_dir
+
+    assert default_work_dir() == tmp_path / "cache" / "repopilot" / "work"
 
 
 def test_create_rejects_bad_issue_number(source):

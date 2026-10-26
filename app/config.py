@@ -32,5 +32,8 @@ class Settings(BaseSettings):
     agent_max_invalid_calls: int = 3
     max_files_per_investigation: int = 10
 
+    sandbox_image: str = "repopilot-pytest"
+    sandbox_timeout_s: int = 60
+
     price_in_per_m: Decimal | None = None
     price_out_per_m: Decimal | None = None

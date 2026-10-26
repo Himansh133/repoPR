@@ -22,6 +22,18 @@ _REJECTED_META = (
 )
 
 
+def default_work_dir() -> Path:
+    """Where temp clones live: ~/.cache/repopilot/work (honours XDG_CACHE_HOME).
+
+    Not /tmp: Docker Desktop runs in a VM that shares the home folder but not /tmp,
+    and the sandbox bind-mounts the working copy.
+    """
+    cache = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
+    base = Path(cache) / "repopilot" / "work"
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
+
 class PatchError(Exception):
     """The patch (or working copy) is not acceptable. Messages are safe to show the model."""
 
@@ -162,11 +174,14 @@ class WorkingCopy:
         self.base_sha = base_sha
 
     @classmethod
-    def create(cls, source: str | Path, issue_number: int) -> "WorkingCopy":
+    def create(
+        cls, source: str | Path, issue_number: int, base_dir: Path | None = None
+    ) -> "WorkingCopy":
         """Clone `source` (committed state only) into a temp dir and branch off it."""
         if isinstance(issue_number, bool) or not isinstance(issue_number, int) or issue_number < 1:
             raise PatchError("Issue number must be a positive integer")
-        dest = Path(tempfile.mkdtemp(prefix="repopilot-")).resolve()
+        parent = base_dir or default_work_dir()
+        dest = Path(tempfile.mkdtemp(prefix="repopilot-", dir=parent)).resolve()
         branch = f"repopilot/issue-{issue_number}"
         try:
             _git(dest.parent, "clone", "--local", "--no-hardlinks", "--quiet", "--",

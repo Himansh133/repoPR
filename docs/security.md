@@ -21,3 +21,5 @@ Safety controls and the tests that cover them. One line per control.
 - Events store names, counts and sizes only, never file contents or model text. Tested. (Chunk 3B)
 - Patches are parsed strictly: size and file limits; no deletes, renames, mode changes or binary patches; no `..`, absolute, backslash, `.git` or `.github` paths; no symlink paths. Tested. (Chunk 4A)
 - Patches are applied only in a temp clone, never in the user's checkout; git hooks are disabled and a planted hook does not run. Tested. (Chunk 4A)
+- Sandbox: fixed profiles only (no model commands, no shell); no network, non-root, read-only root and mount, dropped capabilities, memory/CPU/process/time limits; timeouts force-remove the container; logs are bounded in memory and in the result. Tested with a mocked Docker layer and with a real container. (Chunk 4B)
+- Timeout, out-of-memory and sandbox errors are `violation`, which aborts the run. (Chunk 4B)
