@@ -16,6 +16,7 @@ from typing import Protocol
 from pydantic import ValidationError
 
 from app.agent.events import AgentEvent, EventLog
+from app.agent.messages import assistant_message
 from app.agent.plan import SUBMIT_PLAN_DESCRIPTION, Plan
 from app.agent.prompts import NO_TOOL_NUDGE, SYSTEM_PROMPT, issue_prompt
 from app.agent.states import State, StateMachine
@@ -77,12 +78,18 @@ async def run_investigation(
     issue: Issue,
     budgets: Budgets | None = None,
     clock: Callable[[], float] = time.monotonic,
+    events: EventLog | None = None,
+    machine: StateMachine | None = None,
 ) -> InvestigationResult:
-    """Run the read-only investigation and return a result with a plan, or why it stopped."""
+    """Run the read-only investigation and return a result with a plan, or why it stopped.
+
+    Pass `events` and `machine` to continue a larger run; otherwise fresh ones are made.
+    """
     budgets = budgets or Budgets()
-    events = EventLog()
-    machine = StateMachine(events)
-    machine.transition(State.INVESTIGATE, "start")
+    events = events or EventLog()
+    machine = machine or StateMachine(events)
+    if machine.state is State.INIT:
+        machine.transition(State.INVESTIGATE, "start")
 
     messages: list[dict] = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -150,20 +157,7 @@ async def run_investigation(
                 return too_many_invalid()
             continue
 
-        messages.append(
-            {
-                "role": "assistant",
-                "content": result.text or None,
-                "tool_calls": [
-                    {
-                        "id": c.id,
-                        "type": "function",
-                        "function": {"name": c.name, "arguments": c.arguments},
-                    }
-                    for c in result.tool_calls
-                ],
-            }
-        )
+        messages.append(assistant_message(result))
 
         for call in result.tool_calls:
             if call.name == SUBMIT_PLAN:

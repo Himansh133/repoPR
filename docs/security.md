@@ -23,3 +23,8 @@ Safety controls and the tests that cover them. One line per control.
 - Patches are applied only in a temp clone, never in the user's checkout; git hooks are disabled and a planted hook does not run. Tested. (Chunk 4A)
 - Sandbox: fixed profiles only (no model commands, no shell); no network, non-root, read-only root and mount, dropped capabilities, memory/CPU/process/time limits; timeouts force-remove the container; logs are bounded in memory and in the result. Tested with a mocked Docker layer and with a real container. (Chunk 4B)
 - Timeout, out-of-memory and sandbox errors are `violation`, which aborts the run. (Chunk 4B)
+- The model cannot run tests or commands; the backend runs the fixed profile after each patch. `run_tests` and `run_shell` requests are refused. Tested. (Chunk 4C)
+- A run is `passed` only if tests failed before the patch and pass after it; no tests, or already passing, is `inconclusive`. Tested. (Chunk 4C)
+- Sandbox violation, timeout or sandbox error aborts the run immediately. Tested. (Chunk 4C)
+- Repair feedback is only failed test names and 3,000 characters of output, wrapped as untrusted; events never contain diffs or test logs. Tested. (Chunk 4C)
+- Max 2 repair attempts; step, token and time budgets apply to the whole run. Tested. (Chunk 4C)

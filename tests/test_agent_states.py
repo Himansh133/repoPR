@@ -66,3 +66,56 @@ def test_event_log_records_kind_and_data_with_timestamp():
     assert event.data == {"name": "read_file", "ok": True}
     assert event.state == "INVESTIGATE"
     assert event.ts > 0
+
+
+def test_full_run_path_is_legal():
+    log = EventLog()
+    sm = StateMachine(log)
+    for target in (
+        State.INVESTIGATE, State.PLAN, State.PATCH, State.VALIDATE, State.TEST,
+        State.REPAIR, State.VALIDATE, State.TEST, State.REPORT,
+    ):
+        sm.transition(target, "step")
+    assert sm.state is State.REPORT
+    with pytest.raises(IllegalTransition):
+        sm.transition(State.ABORTED, "too late")  # REPORT is terminal
+
+
+def test_rejected_patch_can_go_back():
+    sm = StateMachine(EventLog())
+    for target in (State.INVESTIGATE, State.PLAN, State.PATCH, State.VALIDATE, State.PATCH):
+        sm.transition(target, "step")
+    assert sm.state is State.PATCH
+
+
+@pytest.mark.parametrize("state", [State.PATCH, State.VALIDATE, State.TEST, State.REPAIR])
+def test_can_abort_from_every_working_state(state):
+    paths = {
+        State.PATCH: [State.INVESTIGATE, State.PLAN, State.PATCH],
+        State.VALIDATE: [State.INVESTIGATE, State.PLAN, State.PATCH, State.VALIDATE],
+        State.TEST: [State.INVESTIGATE, State.PLAN, State.PATCH, State.VALIDATE, State.TEST],
+        State.REPAIR: [
+            State.INVESTIGATE, State.PLAN, State.PATCH, State.VALIDATE, State.TEST, State.REPAIR
+        ],
+    }
+    sm = StateMachine(EventLog())
+    for target in paths[state]:
+        sm.transition(target, "step")
+    sm.transition(State.ABORTED, "stop")
+    assert sm.state is State.ABORTED
+
+
+@pytest.mark.parametrize(
+    "start,target",
+    [(State.PATCH, State.TEST), (State.PATCH, State.REPORT), (State.TEST, State.PATCH)],
+)
+def test_skipping_validation_or_testing_is_illegal(start, target):
+    sm = StateMachine(EventLog())
+    path = {
+        State.PATCH: [State.INVESTIGATE, State.PLAN, State.PATCH],
+        State.TEST: [State.INVESTIGATE, State.PLAN, State.PATCH, State.VALIDATE, State.TEST],
+    }[start]
+    for step in path:
+        sm.transition(step, "step")
+    with pytest.raises(IllegalTransition):
+        sm.transition(target, "nope")

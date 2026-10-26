@@ -14,4 +14,6 @@
 - `tests/fakes.py`: scripted fake LLM.
 - `app/patch.py`: strict unified-diff parser, temp clone on a new branch, `git apply --check` then apply and commit, with hooks off.
 - `app/sandbox.py`, `docker/`: Docker sandbox with fixed test profiles, no network, non-root, read-only, resource limits, bounded logs; `docker` integration tests.
+- `app/agent/fix.py`: full run with baseline tests, patch, sandbox tests, up to 2 repairs, and honest final status (`passed`, `failed`, `inconclusive`, `aborted`).
+- `app/report.py`: plain-text report separating changes, test results and unresolved items.
 - Live smoke tests (completion and tool-calling probe), skipped by default.

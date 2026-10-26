@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     agent_max_invalid_calls: int = 3
     max_files_per_investigation: int = 10
 
+    agent_run_max_steps: int = 24
+    agent_run_max_tokens: int = 60_000
+    agent_run_timeout_s: float = 300
+    agent_max_repairs: int = 2
+
+    sandbox_profile: str = "python-pytest"
     sandbox_image: str = "repopilot-pytest"
     sandbox_timeout_s: int = 60
 
