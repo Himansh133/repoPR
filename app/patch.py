@@ -13,6 +13,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.paths import cache_dir
+
 MAX_DIFF_BYTES = 20_000
 MAX_PATCH_FILES = 5
 GIT_TIMEOUT_S = 60
@@ -28,8 +30,7 @@ def default_work_dir() -> Path:
     Not /tmp: Docker Desktop runs in a VM that shares the home folder but not /tmp,
     and the sandbox bind-mounts the working copy.
     """
-    cache = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
-    base = Path(cache) / "repopilot" / "work"
+    base = cache_dir() / "work"
     base.mkdir(parents=True, exist_ok=True)
     return base
 

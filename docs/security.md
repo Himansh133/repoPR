@@ -28,3 +28,5 @@ Safety controls and the tests that cover them. One line per control.
 - Sandbox violation, timeout or sandbox error aborts the run immediately. Tested. (Chunk 4C)
 - Repair feedback is only failed test names and 3,000 characters of output, wrapped as untrusted; events never contain diffs or test logs. Tested. (Chunk 4C)
 - Max 2 repair attempts; step, token and time budgets apply to the whole run. Tested. (Chunk 4C)
+- The database file is private (0600). Test logs and file contents are never stored; patch diffs are, bounded to 20 KB. Tested. (Chunk 5A)
+- Daily run limit (5) and daily spend cap block new runs; runs that crash still count; unpriced runs are blocked unless explicitly allowed. Tested. (Chunk 5A)

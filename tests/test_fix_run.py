@@ -387,3 +387,11 @@ async def test_workdir_is_kept_for_the_caller(source):
         assert "if not prices" in (result.workdir / "shop" / "cart.py").read_text()
     finally:
         shutil.rmtree(result.workdir, ignore_errors=True)
+
+
+async def test_llm_call_events_carry_latency_and_usage_flag(source):
+    llm = FakeLLM([*investigate_script(), propose(CART, RIGHT)])
+    result = await go(source, llm, FakeSandbox(FAILING, PASSING))
+    calls = [e for e in result.events if e.kind == "llm_call"]
+    assert len(calls) == 3
+    assert all("latency_s" in e.data and e.data["usage_missing"] is False for e in calls)

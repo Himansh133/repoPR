@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     agent_run_timeout_s: float = 300
     agent_max_repairs: int = 2
 
+    db_path: str | None = None
+    daily_spend_cap: Decimal | None = Decimal("5.00")
+    max_runs_per_day: int = 5
+    allow_unpriced: bool = False
+
     sandbox_profile: str = "python-pytest"
     sandbox_image: str = "repopilot-pytest"
     sandbox_timeout_s: int = 60

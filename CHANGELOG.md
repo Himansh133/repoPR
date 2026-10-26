@@ -16,4 +16,6 @@
 - `app/sandbox.py`, `docker/`: Docker sandbox with fixed test profiles, no network, non-root, read-only, resource limits, bounded logs; `docker` integration tests.
 - `app/agent/fix.py`: full run with baseline tests, patch, sandbox tests, up to 2 repairs, and honest final status (`passed`, `failed`, `inconclusive`, `aborted`).
 - `app/report.py`: plain-text report separating changes, test results and unresolved items.
+- `app/db.py`: SQLite persistence for runs, events, patches, test results, usage and approvals; exact cost tracking; daily run and spend limits.
+- `app/paths.py`: shared cache directory helper.
 - Live smoke tests (completion and tool-calling probe), skipped by default.

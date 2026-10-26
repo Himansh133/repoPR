@@ -285,6 +285,8 @@ class _Run:
                 state=self.machine.state.value,
                 input_tokens=result.input_tokens,
                 output_tokens=result.output_tokens,
+                latency_s=round(result.latency_s, 3),
+                usage_missing=result.usage_missing,
                 tool_calls=len(result.tool_calls),
             )
 

@@ -16,3 +16,4 @@ An AI agent that takes a GitHub issue, proposes a minimal patch, and proves it w
 | 4 (A) | Patch validation and working copy | Done | 295 total (223 without ripgrep installed) |
 | 4 (B) | Docker sandbox | Done | 326 total (+9 Docker, +2 live) |
 | 4 (C) | Test run, repair loop and report | Done | 366 total (+11 Docker, +2 live) |
+| 5 (A) | SQLite persistence and usage tracking | Done | 390 total (+11 Docker, +2 live) |
