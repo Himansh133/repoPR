@@ -23,3 +23,8 @@
 - `app/evals.py`, `evals/`: benchmark loader with validation, metrics (resolution, patch test pass, tool-call success, repair success, cost, latency), comparison table, runner with saved artifacts; three seed repos and issues.
 - `repopilot eval` and `repopilot compare`.
 - Live smoke tests (completion and tool-calling probe), skipped by default.
+
+### Fixed
+- `app/patch.py`: hunk header counts are recounted from the hunk body before validation, so a correct patch with miscounted headers is no longer rejected.
+- `repopilot runs`: long repo and model names are shortened so columns no longer run together.
+- Eval table and `summary.json`: cost per issue is rounded to 8 decimal places.

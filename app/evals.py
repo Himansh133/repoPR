@@ -328,6 +328,12 @@ def _pct(value: float | None) -> str:
     return "n/a" if value is None else f"{value * 100:.1f}%"
 
 
+def _cost_text(cost: Decimal) -> str:
+    """Rounded to 8 places, the precision costs are stored at, without trailing zeros."""
+    text = format(cost.quantize(Decimal("0.00000001")), "f")
+    return text.rstrip("0").rstrip(".")
+
+
 def comparison_table(by_model: dict[str, Metrics]) -> str:
     """A markdown table, one row per model."""
     head = (
@@ -339,7 +345,7 @@ def comparison_table(by_model: dict[str, Metrics]) -> str:
         if m.cost_per_issue is None:
             cost = "unknown"
         else:
-            cost = format(m.cost_per_issue.normalize(), "f")
+            cost = _cost_text(m.cost_per_issue)
             if m.unknown_cost_runs:
                 cost += f" ({m.unknown_cost_runs} unknown)"
         latency = "n/a" if m.median_latency_s is None else f"{m.median_latency_s:.1f} s"
@@ -354,7 +360,7 @@ def comparison_table(by_model: dict[str, Metrics]) -> str:
 
 def _metrics_dict(m: Metrics) -> dict:
     d = asdict(m)
-    d["cost_per_issue"] = None if m.cost_per_issue is None else format(m.cost_per_issue, "f")
+    d["cost_per_issue"] = None if m.cost_per_issue is None else _cost_text(m.cost_per_issue)
     return d
 
 

@@ -300,6 +300,14 @@ def test_comparison_table_is_markdown(model_a):
     assert len(rows) == 4
 
 
+def test_cost_per_issue_is_rounded_for_display():
+    three = [er(cost=Decimal("0.00119084")), er(cost=Decimal("0.00204246")),
+             er(cost=Decimal("0.00197204"))]
+    m = compute_metrics(three)
+    assert m.cost_per_issue == sum(r.cost for r in three) / 3  # exact value kept
+    assert "| 0.00173511 |" in comparison_table({"A": m})
+
+
 # --- running the benchmark ----------------------------------------------------
 
 def good_llm(repo_dir, id_suffix=""):
