@@ -119,3 +119,19 @@ def test_skipping_validation_or_testing_is_illegal(start, target):
         sm.transition(step, "step")
     with pytest.raises(IllegalTransition):
         sm.transition(target, "nope")
+
+
+def test_event_log_calls_the_listener_for_each_event():
+    seen = []
+    log = EventLog(on_event=seen.append)
+    log.record("baseline", "INVESTIGATE", status="failed")
+    assert seen == log.events and seen[0].kind == "baseline"
+
+
+def test_a_failing_listener_never_breaks_the_run():
+    def boom(event):
+        raise RuntimeError("listener bug")
+
+    log = EventLog(on_event=boom)
+    log.record("x")
+    assert len(log.events) == 1

@@ -210,6 +210,21 @@ class Database:
             )
         return int(cur.lastrowid)
 
+    def fail_stale_runs(self, started_before: datetime) -> int:
+        """Mark runs still 'running' that began before `started_before` as errors.
+
+        Used at API startup: those runs belonged to a process that stopped.
+        """
+        with self._conn:
+            cur = self._conn.execute(
+                "UPDATE runs SET status='error', reason=?, finished_at=?"
+                " WHERE status='running' AND started_at < ?",
+                ("interrupted: the process running it stopped",
+                 self._now().isoformat(timespec="seconds"),
+                 started_before.isoformat(timespec="seconds")),
+            )
+        return cur.rowcount
+
     def fail_run(self, run_id: int, reason: str) -> None:
         """Mark a run that crashed before producing a result."""
         with self._conn:

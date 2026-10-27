@@ -113,19 +113,23 @@ async def run_issue(
     clock: Callable[[], float] = time.monotonic,
     profile: str = "python-pytest",
     work_dir: Path | None = None,
+    on_event: Callable[[AgentEvent], None] | None = None,
 ) -> RunResult:
     """Run the whole workflow on a clone of `source`. Raises PatchError if the clone fails.
 
     The working copy is left in place (`result.workdir`); the caller removes it.
+    `on_event` receives every event as it is recorded.
     """
     started = clock()
     wc = WorkingCopy.create(source, issue.number, work_dir)
-    run = _Run(llm, wc, issue, sandbox, budgets or RunBudgets(), clock, profile, started)
+    run = _Run(llm, wc, issue, sandbox, budgets or RunBudgets(), clock, profile, started,
+               on_event)
     return await run.execute()
 
 
 class _Run:
-    def __init__(self, llm, wc, issue, sandbox, budgets, clock, profile, started) -> None:
+    def __init__(self, llm, wc, issue, sandbox, budgets, clock, profile, started,
+                 on_event=None) -> None:
         self.llm = llm
         self.wc = wc
         self.issue = issue
@@ -134,7 +138,7 @@ class _Run:
         self.clock = clock
         self.profile = profile
         self.started = started
-        self.events = EventLog()
+        self.events = EventLog(on_event)
         self.machine = StateMachine(self.events)
         self.dispatcher = Dispatcher(Workspace(wc.root))
         self.steps = 0

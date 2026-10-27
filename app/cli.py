@@ -3,33 +3,24 @@
     repopilot run --repo <path-or-github-url> --issue <n> [--github owner/repo]
     repopilot runs | show <id> | usage [--today]
     repopilot approve <id> [--yes] [--closes-issue] | reject <id>
+    repopilot serve [--host 127.0.0.1] [--port 8000]
 
 Exit codes for `run`: 0 passed, 1 failed, 3 inconclusive, 4 aborted or crashed,
 5 usage, configuration or budget error (2 is argparse's own "bad arguments").
+The work itself lives in `app.service`; this module parses, prints and sets exit codes.
 All collaborators are injected through `Deps`, so tests use fakes.
 """
 
 import argparse
 import asyncio
 import json
-import re
 import shutil
-import subprocess
 import sys
-import uuid
-from collections.abc import Callable
-from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TextIO
 
-from pydantic import SecretStr, ValidationError
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from app.agent.fix import RunBudgets, RunStatus, run_issue
-from app.agent.investigate import LLM
-from app.config import Settings
-from app.db import BudgetBlocked, Database
+from app.agent.fix import RunBudgets, RunStatus
 from app.evals import (
     EvalError,
     comparison_table,
@@ -38,14 +29,24 @@ from app.evals import (
     metrics_by_model,
     run_eval,
 )
-from app.github import GitHubClient, GitHubError, GitHubRateLimit, Issue
-from app.llm import LLMClient
-from app.patch import PatchError
-from app.paths import cache_dir, default_db_path
-from app.pr import GitHubWriter, PRError, collect_changes, pr_body, pr_title
-from app.report import build_report
-from app.sandbox import Sandbox, default_profiles
-from app.workspace import Workspace, WorkspaceError
+from app.github import Issue
+from app.service import (
+    Deps,
+    RunCrashed,
+    RunRequest,
+    ServiceError,
+    execute_run,
+    issue_from_fields,
+    load_settings,
+    open_db,
+    open_draft_pr,
+    parse_github_slug,
+    plan_approval,
+    prepare_run,
+    reject_run,
+)
+
+__all__ = ["CliError", "Deps", "main", "parse_github_slug"]
 
 EXIT = {
     RunStatus.PASSED: 0,
@@ -55,60 +56,8 @@ EXIT = {
 }
 CRASH_CODE = 4
 USAGE_CODE = 5
-_SLUG = re.compile(r"^([A-Za-z0-9][A-Za-z0-9-]{0,38})/([A-Za-z0-9_.-]{1,100})$")
-_URL = re.compile(
-    r"^(?:https://github\.com/|git@github\.com:)([A-Za-z0-9][A-Za-z0-9-]{0,38})/"
-    r"([A-Za-z0-9_.-]{1,100}?)(?:\.git)?/?$"
-)
 
-
-class CliError(Exception):
-    """A problem the user can fix. Printed as one line; exit code 5."""
-
-
-class _Paths(BaseSettings):
-    """Only what commands without the model need, so they work without a GMI key."""
-
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-    db_path: str | None = None
-    github_write_token: SecretStr | None = None
-
-
-def _default_clone(url: str, dest: Path) -> Path:
-    return Workspace.clone(url, dest).root
-
-
-def _default_sandbox(settings: Settings) -> Sandbox:
-    profiles = default_profiles(settings.sandbox_image, settings.sandbox_timeout_s)
-    return Sandbox(profiles=profiles)
-
-
-@dataclass
-class Deps:
-    """Everything the CLI talks to. Replace pieces in tests."""
-
-    settings: Callable[[], Settings] = Settings
-    llm: Callable[[Settings], LLM] = LLMClient
-    sandbox: Callable[[Settings], Sandbox] = _default_sandbox
-    github: Callable[[Settings], GitHubClient] = field(
-        default=lambda s: GitHubClient(token=s.github_token)
-    )
-    clone: Callable[[str, Path], Path] = _default_clone
-    paths: Callable[[], _Paths] = _Paths
-    writer: Callable[[SecretStr], GitHubWriter] = GitHubWriter
-    ask: Callable[[str], str] = input
-
-
-def parse_github_slug(text: str) -> tuple[str, str] | None:
-    """`owner/repo`, an https GitHub URL, or an ssh URL -> (owner, repo), else None."""
-    text = text.strip()
-    match = _URL.match(text) or _SLUG.match(text)
-    if not match:
-        return None
-    owner, repo = match.group(1), match.group(2)
-    if repo in (".", ".."):
-        return None
-    return owner, repo.removesuffix(".git")
+CliError = ServiceError  # a problem the user can fix: printed as one line, exit code 5
 
 
 def _issue_number(value: str) -> int:
@@ -166,6 +115,11 @@ def build_parser() -> argparse.ArgumentParser:
     reject = sub.add_parser("reject", help="reject a run; nothing is sent to GitHub")
     reject.add_argument("run_id", type=int)
     reject.add_argument("--note", default="")
+
+    serve = sub.add_parser("serve", help="start the HTTP API (needs REPOPILOT_API_KEY)")
+    serve.add_argument("--host", default="127.0.0.1",
+                       help="address to bind (default 127.0.0.1: this machine only)")
+    serve.add_argument("--port", type=_issue_number, default=8000)
     return parser
 
 
@@ -192,6 +146,8 @@ def main(
             return _cmd_approve(args, deps, out)
         if args.command == "reject":
             return _cmd_reject(args, deps, out)
+        if args.command == "serve":
+            return _cmd_serve(args, deps, out)
         return _cmd_read(args, deps, out)
     except CliError as exc:
         print(f"error: {exc}", file=err)
@@ -200,18 +156,13 @@ def main(
 
 # --- read-only commands --------------------------------------------------------------------------
 
-def _open_db(deps: Deps) -> Database:
-    path = deps.paths().db_path
-    return Database(Path(path) if path else default_db_path())
-
-
 def _clip_left(text: str, width: int) -> str:
     """Keep the end of `text` (the repo name and issue number) when it is too long."""
     return text if len(text) <= width else "…" + text[-(width - 1):]
 
 
 def _cmd_read(args, deps: Deps, out: TextIO) -> int:
-    db = _open_db(deps)
+    db = open_db(deps)
     try:
         if args.command == "runs":
             runs = db.list_runs(args.limit)
@@ -250,99 +201,32 @@ def _cmd_read(args, deps: Deps, out: TextIO) -> int:
 
 # --- run ------------------------------------------------------------------------------------------
 
-def _load_settings(deps: Deps) -> Settings:
-    try:
-        return deps.settings()
-    except ValidationError as exc:
-        missing = [str(e["loc"][0]).upper() for e in exc.errors() if e["type"] == "missing"]
-        bad = [str(e["loc"][0]).upper() for e in exc.errors() if e["type"] != "missing"]
-        parts = []
-        if missing:
-            parts.append(f"missing {', '.join(missing)}")
-        if bad:
-            parts.append(f"invalid {', '.join(bad)}")
-        raise CliError(
-            f"Configuration problem: {'; '.join(parts)}. Copy .env.example to .env and fill it in."
-        ) from None
-
-
-def _local_slug(path: Path) -> tuple[str, str] | None:
-    try:
-        proc = subprocess.run(
-            ["git", "-C", str(path), "remote", "get-url", "origin"],
-            capture_output=True, text=True, timeout=15,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return None
-    return parse_github_slug(proc.stdout) if proc.returncode == 0 else None
-
-
 def _load_issue_file(path: str, number: int) -> Issue:
     try:
         data = json.loads(Path(path).read_text())
     except (OSError, ValueError):
         raise CliError("Could not read the issue file (it must be valid JSON)") from None
-    if not isinstance(data, dict) or not isinstance(data.get("title"), str) or not data["title"]:
+    if not isinstance(data, dict):
         raise CliError("The issue file needs a non-empty string 'title' (and optional 'body')")
-    labels = data.get("labels") if isinstance(data.get("labels"), list) else []
-    return Issue(
-        number=number,
-        title=data["title"][:300],
-        body=str(data.get("body") or "")[:10_000],
-        state="open",
-        url="",
-        author="local",
-        labels=[str(x) for x in labels],
-    )
+    return issue_from_fields(number, data.get("title"), data.get("body"), data.get("labels"))
 
 
 def _cmd_run(args, deps: Deps, out: TextIO, err: TextIO) -> int:
-    settings = _load_settings(deps)
-    prices = (settings.price_in_per_m, settings.price_out_per_m)
-    db = _open_db(deps)
-    clone_dir: Path | None = None
-    run_id: int | None = None
+    settings = load_settings(deps)
+    issue = _load_issue_file(args.issue_file, args.issue) if args.issue_file else None
+    request = RunRequest(args.repo, args.issue, args.github, issue, args.allow_unpriced)
+    db = open_db(deps)
     try:
+        prep = prepare_run(request, settings, deps, db)
         try:
-            db.check_can_start(
-                settings.daily_spend_cap,
-                settings.max_runs_per_day,
-                priced=all(p is not None for p in prices),
-                allow_unpriced=settings.allow_unpriced or args.allow_unpriced,
-            )
-        except BudgetBlocked as exc:
-            raise CliError(str(exc)) from None
-
-        source, slug, clone_dir = _resolve_repo(args, deps)
-        issue = _get_issue(args, slug, settings, deps)
-        label = f"{slug[0]}/{slug[1]}" if slug else str(source)
-
-        run_id = db.start_run(label, issue.number, issue.title, settings.gmi_model)
-        try:
-            result = asyncio.run(
-                run_issue(
-                    deps.llm(settings),
-                    source,
-                    issue,
-                    deps.sandbox(settings),
-                    RunBudgets.from_settings(settings),
-                    profile=settings.sandbox_profile,
-                )
-            )
-        except PatchError as exc:
-            db.fail_run(run_id, f"could not prepare the repository: {exc}")
-            raise CliError(f"Could not prepare the repository: {exc}") from None
+            result, report, record = execute_run(prep, settings, deps, db)
         except KeyboardInterrupt:
-            db.fail_run(run_id, "interrupted")
             print("Interrupted.", file=err)
             return 130
-        except Exception as exc:  # a bug or an unexpected failure: record it, do not hide it
-            db.fail_run(run_id, f"{type(exc).__name__}: {exc}")
-            print(f"Run crashed: {type(exc).__name__}: {exc}", file=err)
+        except RunCrashed as exc:
+            print(f"Run crashed: {exc}", file=err)
             return CRASH_CODE
 
-        report = build_report(result, issue)
-        record = db.finish_run(run_id, result, report, prices)
         print(report, file=out)
         cost = (
             "unknown (prices not set)" if record.cost is None
@@ -356,13 +240,11 @@ def _cmd_run(args, deps: Deps, out: TextIO, err: TextIO) -> int:
             print(f"Working copy: {result.workdir} (branch {result.branch})", file=out)
         return EXIT[result.status]
     finally:
-        if clone_dir is not None:
-            shutil.rmtree(clone_dir, ignore_errors=True)
         db.close()
 
 
 def _cmd_eval(args, deps: Deps, out: TextIO) -> int:
-    settings = _load_settings(deps)
+    settings = load_settings(deps)
     prices = (settings.price_in_per_m, settings.price_out_per_m)
     if any(p is None for p in prices) and not (settings.allow_unpriced or args.allow_unpriced):
         raise CliError(
@@ -387,7 +269,7 @@ def _cmd_eval(args, deps: Deps, out: TextIO) -> int:
     out_dir = Path(args.out) if args.out else Path("evals") / "results" / stamp
     print(f"Planned {planned} runs ({len(models)} models x {len(issues)} issues). "
           f"Each run is capped at {budgets.max_tokens} tokens.", file=out)
-    db = _open_db(deps)
+    db = open_db(deps)
     try:
         results = asyncio.run(
             run_eval(
@@ -426,48 +308,18 @@ def _cmd_compare(args, out: TextIO) -> int:
 
 # --- approve / reject -----------------------------------------------------------------------------
 
-def _decided_run(db: Database, run_id: int):
-    run = db.get_run(run_id)
-    if run is None:
-        raise CliError(f"No run with id {run_id}")
-    if run.pr_url:
-        raise CliError(f"Run #{run_id} already has a draft PR: {run.pr_url}")
-    return run
-
-
 def _cmd_approve(args, deps: Deps, out: TextIO) -> int:
-    """Check everything, show what will be sent, ask, record the approval, open a draft PR."""
-    db = _open_db(deps)
+    """Check everything, show what will be sent, ask, then open a draft PR."""
+    db = open_db(deps)
     try:
-        run = _decided_run(db, args.run_id)
-        if any(a["decision"] == "rejected" for a in db.get_approvals(run.id)):
-            raise CliError(f"Run #{run.id} was rejected; start a new run instead")
-        if run.status != "passed":
-            raise CliError(f"Only passed runs can be approved (run #{run.id} is {run.status})")
-        slug = parse_github_slug(run.repo)
-        if slug is None:
-            raise CliError(f"Run #{run.id} is not linked to a GitHub repo (it ran on a local "
-                           "path with no GitHub origin remote)")
-        token = deps.paths().github_write_token
-        if token is None:
-            raise CliError("Set GITHUB_WRITE_TOKEN (fine-grained; Contents and Pull requests "
-                           "read/write on this repo only) to open a PR")
-        patches = db.get_patches(run.id)
-        if not patches:
-            raise CliError(f"Run #{run.id} has no patch")
-        try:
-            base, files = collect_changes(
-                Path(run.workdir or ""), patches[0]["commit_sha"], patches[-1]["commit_sha"]
-            )
-        except PRError as exc:
-            raise CliError(str(exc)) from None
-
-        branch = f"repopilot/issue-{run.issue_number}-run-{run.id}"
-        keyword = "Fixes" if args.closes_issue else "Refs"
+        plan = plan_approval(db, deps, args.run_id, args.closes_issue)
+        run = plan.run
         print(f"Run #{run.id}: issue #{run.issue_number} {run.issue_title}", file=out)
-        print(f"Target: {slug[0]}/{slug[1]}, new branch {branch} from {base[:12]}", file=out)
-        print(f"Files: {', '.join(f.path for f in files)}", file=out)
-        print(f"Tests: {run.status}. The PR body says '{keyword} #{run.issue_number}'.", file=out)
+        print(f"Target: {plan.owner}/{plan.repo}, new branch {plan.branch} "
+              f"from {plan.base_sha[:12]}", file=out)
+        print(f"Files: {', '.join(f.path for f in plan.files)}", file=out)
+        print(f"Tests: {run.status}. The PR body says '{plan.keyword} #{run.issue_number}'.",
+              file=out)
         if not args.yes:
             try:
                 answer = deps.ask("Type yes to create a draft pull request: ")
@@ -476,16 +328,7 @@ def _cmd_approve(args, deps: Deps, out: TextIO) -> int:
             if answer.strip().lower() != "yes":
                 print("Not approved. Nothing was sent to GitHub.", file=out)
                 return 1
-
-        db.record_approval(run.id, "approved", args.note)
-        title = pr_title(run.issue_number, run.issue_title)
-        body = pr_body(run.issue_number, run.id, run.report or "", args.closes_issue)
-        try:
-            url = asyncio.run(deps.writer(token).create_draft_pr(
-                slug[0], slug[1], branch, base, files, title, body))
-        except PRError as exc:
-            raise CliError(f"Approved, but the draft PR was not created: {exc}") from None
-        db.set_pr_url(run.id, url)
+        url = open_draft_pr(db, deps, plan, args.note)
         print(f"Draft PR created: {url}", file=out)
         return 0
     finally:
@@ -493,55 +336,33 @@ def _cmd_approve(args, deps: Deps, out: TextIO) -> int:
 
 
 def _cmd_reject(args, deps: Deps, out: TextIO) -> int:
-    db = _open_db(deps)
+    db = open_db(deps)
     try:
-        run = _decided_run(db, args.run_id)
-        db.record_approval(run.id, "rejected", args.note)
+        run = reject_run(db, args.run_id, args.note)
         print(f"Run #{run.id} rejected. Nothing was sent to GitHub.", file=out)
         return 0
     finally:
         db.close()
 
 
-def _resolve_repo(args, deps: Deps) -> tuple[Path, tuple[str, str] | None, Path | None]:
-    """Return (path to a local git repo, github slug or None, temp clone dir or None)."""
-    explicit = parse_github_slug(args.github) if args.github else None
-    if args.github and explicit is None:
-        raise CliError("--github must look like owner/repo")
+# --- serve ----------------------------------------------------------------------------------------
 
-    if args.repo.startswith(("https://", "git@")):
-        slug = parse_github_slug(args.repo)
-        if slug is None or not args.repo.startswith("https://"):
-            raise CliError("Only https://github.com/<owner>/<repo> URLs are supported")
-        clone_dir = cache_dir() / "clones" / uuid.uuid4().hex[:12]
-        clone_dir.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            path = deps.clone(args.repo, clone_dir)
-        except WorkspaceError as exc:
-            shutil.rmtree(clone_dir, ignore_errors=True)
-            raise CliError(f"Could not clone: {exc}") from None
-        return Path(path), explicit or slug, clone_dir
+def _cmd_serve(args, deps: Deps, out: TextIO) -> int:
+    from app.api import ApiError, create_app
 
-    path = Path(args.repo).expanduser()
-    if not path.is_dir():
-        raise CliError(f"Repository path not found: {args.repo}")
-    if not (path / ".git").exists():
-        raise CliError("The repository path is not a git repository")
-    return path, explicit or _local_slug(path), None
-
-
-def _get_issue(args, slug, settings: Settings, deps: Deps) -> Issue:
-    if args.issue_file:
-        return _load_issue_file(args.issue_file, args.issue)
-    if slug is None:
-        raise CliError("Cannot tell which GitHub repo this is; pass --github owner/repo")
     try:
-        return asyncio.run(deps.github(settings).get_issue(slug[0], slug[1], args.issue))
-    except GitHubRateLimit as exc:
-        reset = f" (resets at Unix time {exc.reset_at})" if exc.reset_at else ""
-        raise CliError(f"{exc}{reset}") from None
-    except GitHubError as exc:
+        app = create_app(deps)
+    except ApiError as exc:
         raise CliError(str(exc)) from None
+    try:
+        import uvicorn
+    except ImportError:
+        raise CliError("uvicorn is not installed: pip install -r requirements.txt") from None
+    if args.host not in ("127.0.0.1", "localhost", "::1"):
+        print(f"warning: listening on {args.host}; anyone who can reach it and has the API key "
+              "can start runs.", file=out)
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+    return 0
 
 
 if __name__ == "__main__":

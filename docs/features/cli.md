@@ -15,6 +15,7 @@ repopilot show <run-id>                # the stored report
 repopilot usage [--today]              # token and cost totals
 repopilot approve <run-id> [--yes] [--closes-issue] [--note ...]   # draft PR, see draft-pr.md
 repopilot reject <run-id> [--note ...]
+repopilot serve [--host 127.0.0.1] [--port 8000]   # the HTTP API, see api.md
 ```
 `run` options: `--github owner/repo` (if it cannot be worked out), `--issue-file issue.json` (`{"title": "...", "body": "...", "labels": []}`, skips GitHub), `--allow-unpriced`, `--cleanup` (delete the working copy afterwards).
 

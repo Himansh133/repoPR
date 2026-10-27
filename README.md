@@ -36,6 +36,7 @@ repopilot run --repo https://github.com/o/r --issue 7
 repopilot run --repo . --issue 1 --issue-file issue.json    # no GitHub needed
 repopilot runs | show <id> | usage [--today]
 repopilot approve <id> [--closes-issue] | reject <id>   # draft PR only after you type yes
+repopilot serve                                        # HTTP API on 127.0.0.1:8000 (docs/features/api.md)
 repopilot eval --models a,b --issues evals/benchmark_issues.jsonl
 repopilot compare evals/results/<run>
 ```
@@ -47,7 +48,7 @@ Repo, issue and test-output text is untrusted and never followed as instructions
 ## Limitations
 - Python repos tested with pytest only; the sandbox image has no other packages, so tests that need third-party dependencies will fail.
 - Nothing has been run against a real model yet; see [docs/live-testing.md](docs/live-testing.md).
-- The API and the dashboard are not built yet. Draft PRs are tested against mocked GitHub only so far.
+- The dashboard is not built yet. Draft PRs are tested against mocked GitHub only so far.
 - The bundled benchmark has three easy synthetic issues. Real comparisons need real issues.
 
 ## Project status
@@ -69,7 +70,9 @@ Repo, issue and test-output text is untrusted and never followed as instructions
 | 5 (C) | Evaluation harness | Done | 470 total (+11 Docker, +2 live); 398 without ripgrep installed |
 | 6 | Model comparison report | Waiting for a live GMI run | - |
 | 7 | Draft PR with approval gate | Done (mocked GitHub), live PR pending | 512 total (+11 Docker, +2 live); 440 without ripgrep installed |
-| 8 | FastAPI layer, dashboard, release polish | Not started | - |
+| 8 (A) | FastAPI layer | Done | 569 total (+11 Docker, +2 live); 497 without ripgrep installed |
+| 8 (B) | Dashboard | Not started | - |
+| 8 (C) | Release polish | Not started | - |
 
 ## Docs
 `docs/features/` (one page per feature), `docs/decisions/` (why), `docs/security.md`, `docs/live-testing.md`, `CHANGELOG.md`.

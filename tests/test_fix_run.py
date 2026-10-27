@@ -129,6 +129,15 @@ async def test_passes_on_the_first_try(source):
 
 # --- repair -------------------------------------------------------------------
 
+async def test_events_are_streamed_to_a_listener_as_they_happen(source):
+    seen = []
+    llm = FakeLLM([*investigate_script(), propose(CART, RIGHT)])
+    result = await run_issue(llm, source, ISSUE, FakeSandbox(FAILING, PASSING),
+                             on_event=seen.append)
+    assert seen == result.events and seen[0].kind == "transition"
+    shutil.rmtree(result.workdir, ignore_errors=True)
+
+
 async def test_fail_then_repair_then_pass(source):
     big_log = "E noisy line\n" * 2000 + "E AssertionError: assert 1 == 0"
     llm = FakeLLM([*investigate_script(), propose(CART, WRONG), propose(WRONG, RIGHT, "pp2")])
