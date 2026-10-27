@@ -13,6 +13,8 @@ repopilot run --repo <local-git-repo | https://github.com/o/r> --issue 7 [option
 repopilot runs [--limit N]             # recent runs
 repopilot show <run-id>                # the stored report
 repopilot usage [--today]              # token and cost totals
+repopilot approve <run-id> [--yes] [--closes-issue] [--note ...]   # draft PR, see draft-pr.md
+repopilot reject <run-id> [--note ...]
 ```
 `run` options: `--github owner/repo` (if it cannot be worked out), `--issue-file issue.json` (`{"title": "...", "body": "...", "labels": []}`, skips GitHub), `--allow-unpriced`, `--cleanup` (delete the working copy afterwards).
 

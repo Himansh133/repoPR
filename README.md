@@ -35,6 +35,7 @@ repopilot run --repo . --issue 7                      # local git repo, issue fe
 repopilot run --repo https://github.com/o/r --issue 7
 repopilot run --repo . --issue 1 --issue-file issue.json    # no GitHub needed
 repopilot runs | show <id> | usage [--today]
+repopilot approve <id> [--closes-issue] | reject <id>   # draft PR only after you type yes
 repopilot eval --models a,b --issues evals/benchmark_issues.jsonl
 repopilot compare evals/results/<run>
 ```
@@ -46,7 +47,7 @@ Repo, issue and test-output text is untrusted and never followed as instructions
 ## Limitations
 - Python repos tested with pytest only; the sandbox image has no other packages, so tests that need third-party dependencies will fail.
 - Nothing has been run against a real model yet; see [docs/live-testing.md](docs/live-testing.md).
-- Pull request creation, the API and the dashboard are not built yet.
+- The API and the dashboard are not built yet. Draft PRs are tested against mocked GitHub only so far.
 - The bundled benchmark has three easy synthetic issues. Real comparisons need real issues.
 
 ## Project status
@@ -67,7 +68,7 @@ Repo, issue and test-output text is untrusted and never followed as instructions
 | 5 (B) | `repopilot` CLI | Done | 426 total |
 | 5 (C) | Evaluation harness | Done | 470 total (+11 Docker, +2 live); 398 without ripgrep installed |
 | 6 | Model comparison report | Waiting for a live GMI run | - |
-| 7 | Draft PR with approval gate | Not started | - |
+| 7 | Draft PR with approval gate | Done (mocked GitHub), live PR pending | 512 total (+11 Docker, +2 live); 440 without ripgrep installed |
 | 8 | FastAPI layer, dashboard, release polish | Not started | - |
 
 ## Docs

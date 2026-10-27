@@ -16,7 +16,7 @@ db.record_approval(id, "approved"|"rejected", note); db.get_approvals(id)
 ```
 
 ## Tables
-`runs`, `events`, `patches`, `test_executions`, `usage_records`, `approvals`. The schema version is in `PRAGMA user_version` (1). Opening an existing file is safe; a file from a newer version is refused.
+`runs`, `events`, `patches`, `test_executions`, `usage_records`, `approvals`. The schema version is in `PRAGMA user_version` (2; version 2 added `runs.pr_url`). Opening an existing file is safe; older files are migrated in place, one transaction per step, and a file from a newer version is refused.
 
 ## What is and is not stored
 - Stored: run summary and report, events (names, counts, sizes), patches with their diff (max 20 KB, model-written), test status, exit code and failed test names, one usage record per LLM call.

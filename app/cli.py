@@ -2,6 +2,7 @@
 
     repopilot run --repo <path-or-github-url> --issue <n> [--github owner/repo]
     repopilot runs | show <id> | usage [--today]
+    repopilot approve <id> [--yes] [--closes-issue] | reject <id>
 
 Exit codes for `run`: 0 passed, 1 failed, 3 inconclusive, 4 aborted or crashed,
 5 usage, configuration or budget error (2 is argparse's own "bad arguments").
@@ -22,7 +23,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TextIO
 
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.agent.fix import RunBudgets, RunStatus, run_issue
@@ -41,6 +42,7 @@ from app.github import GitHubClient, GitHubError, GitHubRateLimit, Issue
 from app.llm import LLMClient
 from app.patch import PatchError
 from app.paths import cache_dir, default_db_path
+from app.pr import GitHubWriter, PRError, collect_changes, pr_body, pr_title
 from app.report import build_report
 from app.sandbox import Sandbox, default_profiles
 from app.workspace import Workspace, WorkspaceError
@@ -65,10 +67,11 @@ class CliError(Exception):
 
 
 class _Paths(BaseSettings):
-    """Only what read-only commands need, so `runs` works without a GMI key."""
+    """Only what commands without the model need, so they work without a GMI key."""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     db_path: str | None = None
+    github_write_token: SecretStr | None = None
 
 
 def _default_clone(url: str, dest: Path) -> Path:
@@ -92,6 +95,8 @@ class Deps:
     )
     clone: Callable[[str, Path], Path] = _default_clone
     paths: Callable[[], _Paths] = _Paths
+    writer: Callable[[SecretStr], GitHubWriter] = GitHubWriter
+    ask: Callable[[str], str] = input
 
 
 def parse_github_slug(text: str) -> tuple[str, str] | None:
@@ -150,6 +155,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     cmp_ = sub.add_parser("compare", help="print the comparison table of saved eval results")
     cmp_.add_argument("results_dir")
+
+    approve = sub.add_parser("approve", help="open a draft PR for a passed run")
+    approve.add_argument("run_id", type=int)
+    approve.add_argument("--note", default="")
+    approve.add_argument("--yes", action="store_true", help="do not ask for confirmation")
+    approve.add_argument("--closes-issue", action="store_true",
+                         help="write 'Fixes #N' (closes the issue on merge) instead of 'Refs #N'")
+
+    reject = sub.add_parser("reject", help="reject a run; nothing is sent to GitHub")
+    reject.add_argument("run_id", type=int)
+    reject.add_argument("--note", default="")
     return parser
 
 
@@ -172,6 +188,10 @@ def main(
             return _cmd_eval(args, deps, out)
         if args.command == "compare":
             return _cmd_compare(args, out)
+        if args.command == "approve":
+            return _cmd_approve(args, deps, out)
+        if args.command == "reject":
+            return _cmd_reject(args, deps, out)
         return _cmd_read(args, deps, out)
     except CliError as exc:
         print(f"error: {exc}", file=err)
@@ -213,6 +233,8 @@ def _cmd_read(args, deps: Deps, out: TextIO) -> int:
             if run is None:
                 raise CliError(f"No run with id {args.run_id}")
             print(run.report or f"(no report; status {run.status}: {run.reason})", file=out)
+            if run.pr_url:
+                print(f"Draft PR: {run.pr_url}", file=out)
             return 0
         day = datetime.now(UTC).date() if args.today else None
         totals = db.usage_totals(day)
@@ -400,6 +422,85 @@ def _cmd_compare(args, out: TextIO) -> int:
         raise CliError(f"No eval results found: {exc}") from None
     print(comparison_table(metrics_by_model(results)), file=out)
     return 0
+
+
+# --- approve / reject -----------------------------------------------------------------------------
+
+def _decided_run(db: Database, run_id: int):
+    run = db.get_run(run_id)
+    if run is None:
+        raise CliError(f"No run with id {run_id}")
+    if run.pr_url:
+        raise CliError(f"Run #{run_id} already has a draft PR: {run.pr_url}")
+    return run
+
+
+def _cmd_approve(args, deps: Deps, out: TextIO) -> int:
+    """Check everything, show what will be sent, ask, record the approval, open a draft PR."""
+    db = _open_db(deps)
+    try:
+        run = _decided_run(db, args.run_id)
+        if any(a["decision"] == "rejected" for a in db.get_approvals(run.id)):
+            raise CliError(f"Run #{run.id} was rejected; start a new run instead")
+        if run.status != "passed":
+            raise CliError(f"Only passed runs can be approved (run #{run.id} is {run.status})")
+        slug = parse_github_slug(run.repo)
+        if slug is None:
+            raise CliError(f"Run #{run.id} is not linked to a GitHub repo (it ran on a local "
+                           "path with no GitHub origin remote)")
+        token = deps.paths().github_write_token
+        if token is None:
+            raise CliError("Set GITHUB_WRITE_TOKEN (fine-grained; Contents and Pull requests "
+                           "read/write on this repo only) to open a PR")
+        patches = db.get_patches(run.id)
+        if not patches:
+            raise CliError(f"Run #{run.id} has no patch")
+        try:
+            base, files = collect_changes(
+                Path(run.workdir or ""), patches[0]["commit_sha"], patches[-1]["commit_sha"]
+            )
+        except PRError as exc:
+            raise CliError(str(exc)) from None
+
+        branch = f"repopilot/issue-{run.issue_number}-run-{run.id}"
+        keyword = "Fixes" if args.closes_issue else "Refs"
+        print(f"Run #{run.id}: issue #{run.issue_number} {run.issue_title}", file=out)
+        print(f"Target: {slug[0]}/{slug[1]}, new branch {branch} from {base[:12]}", file=out)
+        print(f"Files: {', '.join(f.path for f in files)}", file=out)
+        print(f"Tests: {run.status}. The PR body says '{keyword} #{run.issue_number}'.", file=out)
+        if not args.yes:
+            try:
+                answer = deps.ask("Type yes to create a draft pull request: ")
+            except EOFError:
+                answer = ""
+            if answer.strip().lower() != "yes":
+                print("Not approved. Nothing was sent to GitHub.", file=out)
+                return 1
+
+        db.record_approval(run.id, "approved", args.note)
+        title = pr_title(run.issue_number, run.issue_title)
+        body = pr_body(run.issue_number, run.id, run.report or "", args.closes_issue)
+        try:
+            url = asyncio.run(deps.writer(token).create_draft_pr(
+                slug[0], slug[1], branch, base, files, title, body))
+        except PRError as exc:
+            raise CliError(f"Approved, but the draft PR was not created: {exc}") from None
+        db.set_pr_url(run.id, url)
+        print(f"Draft PR created: {url}", file=out)
+        return 0
+    finally:
+        db.close()
+
+
+def _cmd_reject(args, deps: Deps, out: TextIO) -> int:
+    db = _open_db(deps)
+    try:
+        run = _decided_run(db, args.run_id)
+        db.record_approval(run.id, "rejected", args.note)
+        print(f"Run #{run.id} rejected. Nothing was sent to GitHub.", file=out)
+        return 0
+    finally:
+        db.close()
 
 
 def _resolve_repo(args, deps: Deps) -> tuple[Path, tuple[str, str] | None, Path | None]:

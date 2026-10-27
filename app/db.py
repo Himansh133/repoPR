@@ -19,8 +19,8 @@ from app.agent.events import AgentEvent
 from app.agent.fix import RunResult
 from app.llm import calculate_cost
 
-SCHEMA_VERSION = 1
-_SCHEMA = """
+SCHEMA_VERSION = 2
+_SCHEMA_V1 = """
 CREATE TABLE runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     started_at TEXT NOT NULL,
@@ -92,6 +92,10 @@ CREATE TABLE approvals (
 );
 CREATE INDEX idx_runs_started ON runs(started_at);
 """
+# Each step takes the database from version N-1 to N. Existing rows are kept.
+_MIGRATIONS = {
+    2: "ALTER TABLE runs ADD COLUMN pr_url TEXT;",
+}
 
 
 @dataclass(frozen=True)
@@ -142,6 +146,7 @@ class RunRecord:
     cost: Decimal | None
     cost_estimated: bool
     report: str | None
+    pr_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -177,12 +182,17 @@ class Database:
         self._conn.execute("PRAGMA foreign_keys = ON")
         os.chmod(self.path, 0o600)
         version = self._conn.execute("PRAGMA user_version").fetchone()[0]
+        if version > SCHEMA_VERSION:
+            raise RuntimeError("Database was created by a newer RepoPilot version")
         if version == 0:
             with self._conn:
-                self._conn.executescript(_SCHEMA)
-                self._conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
-        elif version > SCHEMA_VERSION:
-            raise RuntimeError("Database was created by a newer RepoPilot version")
+                self._conn.executescript(_SCHEMA_V1)
+                self._conn.execute("PRAGMA user_version = 1")
+            version = 1
+        for step in range(version + 1, SCHEMA_VERSION + 1):  # one transaction per step
+            self._conn.executescript(
+                f"BEGIN; {_MIGRATIONS[step]} PRAGMA user_version = {step}; COMMIT;"
+            )
 
     def close(self) -> None:
         self._conn.close()
@@ -357,6 +367,11 @@ class Database:
                 )
 
     # --- approvals --------------------------------------------------------------------------
+
+    def set_pr_url(self, run_id: int, url: str) -> None:
+        """Remember the draft PR opened for a run."""
+        with self._conn:
+            self._conn.execute("UPDATE runs SET pr_url=? WHERE id=?", (url[:500], run_id))
 
     def record_approval(self, run_id: int, decision: str, note: str = "") -> None:
         if decision not in ("approved", "rejected"):

@@ -23,6 +23,8 @@
 - `app/evals.py`, `evals/`: benchmark loader with validation, metrics (resolution, patch test pass, tool-call success, repair success, cost, latency), comparison table, runner with saved artifacts; three seed repos and issues.
 - `repopilot eval` and `repopilot compare`.
 - Live smoke tests (completion and tool-calling probe), skipped by default.
+- `app/pr.py` and `repopilot approve` / `reject`: draft PR only after explicit approval, built from the tested working copy through the GitHub API with a separate write token; `Refs #N` by default, `--closes-issue` for `Fixes #N`.
+- `app/db.py`: schema version 2 with `runs.pr_url` and in-place migration from version 1.
 
 ### Fixed
 - `app/patch.py`: hunk header counts are recounted from the hunk body before validation, so a correct patch with miscounted headers is no longer rejected.

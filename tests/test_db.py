@@ -80,7 +80,29 @@ def test_schema_is_created_and_reopening_is_safe(tmp_path):
     conn = sqlite3.connect(path)
     tables = {r[0] for r in conn.execute("select name from sqlite_master where type='table'")}
     assert {"runs", "events", "patches", "test_executions", "usage_records", "approvals"} <= tables
-    assert conn.execute("pragma user_version").fetchone()[0] == 1
+    assert conn.execute("pragma user_version").fetchone()[0] == 2
+
+
+def test_version_1_database_is_migrated_and_keeps_its_runs(tmp_path, clock):
+    from app.db import _SCHEMA_V1
+
+    path = tmp_path / "old.db"
+    conn = sqlite3.connect(path)
+    conn.executescript(_SCHEMA_V1)
+    conn.execute("INSERT INTO runs (started_at, repo, issue_number, issue_title, model, status)"
+                 " VALUES ('2026-10-01T00:00:00+00:00', 'octo/demo', 7, 't', 'm1', 'passed')")
+    conn.execute("PRAGMA user_version = 1")
+    conn.commit()
+    conn.close()
+    db = Database(path, now=clock)
+    try:
+        (run,) = db.list_runs()
+        assert run.repo == "octo/demo" and run.pr_url is None
+        db.set_pr_url(run.id, "https://github.com/octo/demo/pull/9")
+        assert db.get_run(run.id).pr_url == "https://github.com/octo/demo/pull/9"
+    finally:
+        db.close()
+    assert sqlite3.connect(path).execute("pragma user_version").fetchone()[0] == 2
 
 
 def test_database_file_is_private(tmp_path):

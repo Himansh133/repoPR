@@ -472,3 +472,157 @@ def test_compare_prints_saved_results(tmp_path):
 def test_compare_missing_results(tmp_path):
     code, _, err = run_cli(["compare", str(tmp_path / "nothing")], make_deps())
     assert code == 5 and "results" in err
+
+
+# --- approve / reject ----------------------------------------------------------------
+
+WRITE_TOKEN = "github_pat_very_secret_write_token"
+PR_URL = "https://github.com/octo/demo/pull/9"
+
+
+class FakeWriter:
+    def __init__(self, error=None):
+        self.error = error
+        self.calls = []
+
+    async def create_draft_pr(self, owner, repo, branch, base_sha, files, title, body):
+        self.calls.append(dict(owner=owner, repo=repo, branch=branch, base_sha=base_sha,
+                               files=files, title=title, body=body))
+        if self.error:
+            raise self.error
+        return PR_URL
+
+
+def approve_deps(writer, answer="yes"):
+    deps = make_deps()
+    deps.writer = lambda token: writer
+    deps.ask = lambda prompt: answer
+    return deps
+
+
+@pytest.fixture
+def passed_run(source, issue_file, monkeypatch):
+    monkeypatch.setenv("GITHUB_WRITE_TOKEN", WRITE_TOKEN)
+    code, _, _ = run_cli(args(source, issue_file), good_run_deps())
+    assert code == 0
+    return 1
+
+
+def test_approve_creates_a_draft_pr_from_the_tested_working_copy(passed_run, source, tmp_path):
+    writer = FakeWriter()
+    code, out, err = run_cli(["approve", "1", "--yes", "--note", "ok"], approve_deps(writer))
+    assert code == 0 and PR_URL in out
+    (call,) = writer.calls
+    assert (call["owner"], call["repo"]) == ("octo", "demo")
+    assert call["branch"] == "repopilot/issue-7-run-1"
+    assert call["base_sha"] == git(source, "rev-parse", "HEAD")
+    assert [f.path for f in call["files"]] == ["shop/cart.py"]
+    assert b"if not prices" in call["files"][0].content
+    assert call["body"].startswith("Refs #7") and "Status: PASSED" in call["body"]
+    assert call["title"].startswith("Fix #7:")
+    db = db_of(tmp_path)
+    assert db.get_run(1).pr_url == PR_URL
+    assert [a["decision"] for a in db.get_approvals(1)] == ["approved"]
+    assert WRITE_TOKEN not in out + err
+
+
+def test_closes_issue_flag_uses_fixes(passed_run):
+    writer = FakeWriter()
+    run_cli(["approve", "1", "--yes", "--closes-issue"], approve_deps(writer))
+    assert writer.calls[0]["body"].startswith("Fixes #7")
+
+
+@pytest.mark.parametrize("answer", ["no", "", "y", "YES please"])
+def test_anything_but_yes_at_the_prompt_sends_nothing(passed_run, tmp_path, answer):
+    writer = FakeWriter()
+    code, out, _ = run_cli(["approve", "1"], approve_deps(writer, answer))
+    assert code == 1 and "Nothing was sent" in out
+    assert writer.calls == [] and db_of(tmp_path).get_approvals(1) == []
+
+
+def test_typing_yes_at_the_prompt_approves(passed_run):
+    writer = FakeWriter()
+    code, out, _ = run_cli(["approve", "1"], approve_deps(writer, " yes "))
+    assert code == 0 and len(writer.calls) == 1
+    assert "octo/demo" in out and "shop/cart.py" in out  # shown before asking
+
+
+def test_reject_records_it_and_blocks_a_later_approve(passed_run, tmp_path):
+    writer = FakeWriter()
+    code, out, _ = run_cli(["reject", "1", "--note", "wrong fix"], approve_deps(writer))
+    assert code == 0 and "rejected" in out
+    code, _, err = run_cli(["approve", "1", "--yes"], approve_deps(writer))
+    assert code == 5 and "rejected" in err
+    assert writer.calls == []
+    assert [a["decision"] for a in db_of(tmp_path).get_approvals(1)] == ["rejected"]
+
+
+def test_only_passed_runs_can_be_approved(passed_run, tmp_path):
+    db = db_of(tmp_path)
+    db._conn.execute("UPDATE runs SET status='failed' WHERE id=1")
+    db._conn.commit()
+    writer = FakeWriter()
+    code, _, err = run_cli(["approve", "1", "--yes"], approve_deps(writer))
+    assert code == 5 and "passed" in err and writer.calls == []
+
+
+def test_a_run_gets_at_most_one_pr(passed_run):
+    writer = FakeWriter()
+    run_cli(["approve", "1", "--yes"], approve_deps(writer))
+    code, _, err = run_cli(["approve", "1", "--yes"], approve_deps(writer))
+    assert code == 5 and PR_URL in err and len(writer.calls) == 1
+    code, _, err = run_cli(["reject", "1"], approve_deps(writer))
+    assert code == 5 and "already has a draft PR" in err
+
+
+def test_missing_write_token_is_refused(passed_run, monkeypatch):
+    monkeypatch.delenv("GITHUB_WRITE_TOKEN")
+    writer = FakeWriter()
+    code, _, err = run_cli(["approve", "1", "--yes"], approve_deps(writer))
+    assert code == 5 and "GITHUB_WRITE_TOKEN" in err and writer.calls == []
+
+
+def test_removed_working_copy_is_refused(passed_run, tmp_path):
+    shutil.rmtree(db_of(tmp_path).get_run(1).workdir)
+    writer = FakeWriter()
+    code, _, err = run_cli(["approve", "1", "--yes"], approve_deps(writer))
+    assert code == 5 and "Working copy" in err and writer.calls == []
+
+
+def test_working_copy_edited_after_the_tests_is_refused(passed_run, tmp_path):
+    workdir = Path(db_of(tmp_path).get_run(1).workdir)
+    (workdir / "shop" / "cart.py").write_text("print('not what was tested')\n")
+    writer = FakeWriter()
+    code, _, err = run_cli(["approve", "1", "--yes"], approve_deps(writer))
+    assert code == 5 and "uncommitted" in err and writer.calls == []
+
+
+def test_run_without_a_github_repo_is_refused(source, issue_file, monkeypatch):
+    monkeypatch.setenv("GITHUB_WRITE_TOKEN", WRITE_TOKEN)
+    git(source, "remote", "remove", "origin")
+    run_cli(args(source, issue_file), good_run_deps())
+    writer = FakeWriter()
+    code, _, err = run_cli(["approve", "1", "--yes"], approve_deps(writer))
+    assert code == 5 and "GitHub repo" in err and writer.calls == []
+
+
+def test_github_failure_is_reported_and_no_pr_is_saved(passed_run, tmp_path):
+    from app.pr import PRError
+
+    writer = FakeWriter(PRError("Creating the pull request failed (422); branch was deleted"))
+    code, out, err = run_cli(["approve", "1", "--yes"], approve_deps(writer))
+    assert code == 5 and "422" in err and WRITE_TOKEN not in out + err
+    assert db_of(tmp_path).get_run(1).pr_url is None
+
+
+def test_unknown_run_for_approve_and_reject():
+    for cmd in ("approve", "reject"):
+        code, _, err = run_cli([cmd, "42", "--yes"] if cmd == "approve" else [cmd, "42"],
+                               approve_deps(FakeWriter()))
+        assert code == 5 and "No run" in err
+
+
+def test_show_includes_the_pr_link(passed_run):
+    run_cli(["approve", "1", "--yes"], approve_deps(FakeWriter()))
+    _, out, _ = run_cli(["show", "1"], make_deps())
+    assert f"Draft PR: {PR_URL}" in out
