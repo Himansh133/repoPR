@@ -1,0 +1,22 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4-Flash",
+  "issue_id": "word-count-extra-spaces",
+  "expected_outcome": "passed",
+  "status": "passed",
+  "reason": null,
+  "baseline_relevant_failed": true,
+  "final_passed": true,
+  "resolved": true,
+  "patched": true,
+  "repairs_used": 0,
+  "steps": 5,
+  "input_tokens": 6809,
+  "output_tokens": 812,
+  "cost": "0.00118062",
+  "cost_estimated": false,
+  "latency_s": 14.460809743000937,
+  "tool_ok": 7,
+  "tool_total": 7,
+  "error": null,
+  "run_id": 7
+}

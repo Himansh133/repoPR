@@ -1,0 +1,22 @@
+{
+  "started_at": "2026-10-27T21:39:37+00:00",
+  "models": [
+    "deepseek-ai/DeepSeek-V4-Flash"
+  ],
+  "issues": [
+    "avg-price-empty-cart",
+    "clamp-ignores-low",
+    "word-count-extra-spaces"
+  ],
+  "benchmark_sha256": "ba2931196ef6defc527d02b6b303ee8ff2df755d0ca8dee6a04901184d5c68a7",
+  "budgets": {
+    "max_steps": 24,
+    "max_tokens": 60000,
+    "timeout_s": 300.0,
+    "max_invalid_calls": 3,
+    "max_repairs": 2,
+    "investigation_steps": 12,
+    "investigation_tokens": 30000
+  },
+  "stopped_reason": null
+}

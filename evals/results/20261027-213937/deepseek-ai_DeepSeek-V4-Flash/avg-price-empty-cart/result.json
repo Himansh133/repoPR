@@ -1,0 +1,22 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4-Flash",
+  "issue_id": "avg-price-empty-cart",
+  "expected_outcome": "passed",
+  "status": "passed",
+  "reason": null,
+  "baseline_relevant_failed": true,
+  "final_passed": true,
+  "resolved": true,
+  "patched": true,
+  "repairs_used": 0,
+  "steps": 5,
+  "input_tokens": 6830,
+  "output_tokens": 728,
+  "cost": "0.00116004",
+  "cost_estimated": false,
+  "latency_s": 21.067377609999312,
+  "tool_ok": 8,
+  "tool_total": 8,
+  "error": null,
+  "run_id": 5
+}

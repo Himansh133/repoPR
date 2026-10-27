@@ -1,0 +1,13 @@
+diff --git a/util.py b/util.py
+index 831e390..b787a35 100644
+--- a/util.py
++++ b/util.py
+@@ -3,6 +3,8 @@
+ 
+ def clamp(value, low, high):
+     """Return value limited to the range low..high."""
++    if value < low:
++        return low
+     if value > high:
+         return high
+     return value

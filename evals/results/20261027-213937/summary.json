@@ -1,0 +1,13 @@
+{
+  "deepseek-ai/DeepSeek-V4-Flash": {
+    "runs": 3,
+    "patch_test_pass_rate": 1.0,
+    "issue_resolution_rate": 1.0,
+    "tool_call_success_rate": 0.9583333333333334,
+    "repair_success_rate": null,
+    "cost_per_issue": "0.00126103",
+    "unknown_cost_runs": 0,
+    "median_latency_s": 15.642846185000963,
+    "expectation_match_rate": 1.0
+  }
+}
