@@ -15,10 +15,12 @@ import time
 from collections import deque
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Query, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
 from app import __version__
@@ -46,6 +48,7 @@ MIN_KEY_CHARS = 16
 STALE_AFTER = timedelta(hours=1)  # far longer than the 5-minute run timeout
 KEEP_LIVE_RUNS = 5
 SSE_POLL_S = 0.1
+DASHBOARD_DIR = Path(__file__).resolve().parent.parent / "dashboard" / "dist"
 
 
 class ApiError(Exception):
@@ -194,6 +197,7 @@ def create_app(
     *,
     run_rate: tuple[int, float] = (5, 60),
     decide_rate: tuple[int, float] = (10, 60),
+    dashboard_dir: Path = DASHBOARD_DIR,
 ) -> FastAPI:
     """Build the app. Raises ApiError if REPOPILOT_API_KEY is missing or shorter than 16."""
     deps = deps or Deps()
@@ -349,4 +353,11 @@ def create_app(
         return {"id": run.id, "decision": "rejected"}
 
     app.include_router(api)
+    # The dashboard is static files; it needs no key, but every data call it makes does.
+    if (dashboard_dir / "index.html").is_file():
+        app.mount("/ui", StaticFiles(directory=dashboard_dir, html=True), name="ui")
+    else:
+        @app.get("/ui/", response_class=PlainTextResponse)
+        def dashboard_missing() -> str:
+            return "Dashboard not built: cd dashboard && npm ci && npm run build"
     return app

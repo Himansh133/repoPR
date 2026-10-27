@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+/* Midnight Violet. primary-strong is for button fills (white text 5.70:1; primary is 4.23:1),
+   control is for input borders (3:1+); border is for decorative dividers only. */
+@theme {
+  --color-bg: #09090b;
+  --color-panel: #18181b;
+  --color-elevated: #202024;
+  --color-border: #27272a;
+  --color-control: #71717a;
+  --color-primary: #8b5cf6;
+  --color-primary-strong: #7c3aed;
+  --color-primary-hover: #6d28d9;
+  --color-fg: #fafafa;
+  --color-muted: #a1a1aa;
+  --color-success: #10b981;
+  --color-error: #f87171;
+  --color-warning: #f59e0b;
+  --color-link: #60a5fa;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

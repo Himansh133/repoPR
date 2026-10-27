@@ -338,3 +338,22 @@ def test_runs_left_running_by_a_dead_process_are_marked_on_startup(tmp_path):
     client = client_for()
     assert client.get(f"/runs/{stale}", headers=AUTH).json()["status"] == "error"
     assert client.get(f"/runs/{fresh}", headers=AUTH).json()["status"] == "running"
+
+
+# --- dashboard serving -------------------------------------------------------------------------
+
+def test_built_dashboard_is_served_at_ui_without_a_key(tmp_path):
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<!doctype html><title>RepoPilot</title>")
+    client = TestClient(create_app(make_deps(), dashboard_dir=dist))
+    resp = client.get("/ui/")
+    assert resp.status_code == 200 and "<title>RepoPilot</title>" in resp.text
+    assert client.get("/runs").status_code == 401  # API routes unchanged
+    assert client.get("/runs", headers=AUTH).status_code == 200
+
+
+def test_missing_dashboard_build_says_how_to_build(tmp_path):
+    client = TestClient(create_app(make_deps(), dashboard_dir=tmp_path / "nothing"))
+    resp = client.get("/ui/")
+    assert resp.status_code == 200 and "npm run build" in resp.text
