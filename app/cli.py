@@ -185,6 +185,11 @@ def _open_db(deps: Deps) -> Database:
     return Database(Path(path) if path else default_db_path())
 
 
+def _clip_left(text: str, width: int) -> str:
+    """Keep the end of `text` (the repo name and issue number) when it is too long."""
+    return text if len(text) <= width else "…" + text[-(width - 1):]
+
+
 def _cmd_read(args, deps: Deps, out: TextIO) -> int:
     db = _open_db(deps)
     try:
@@ -193,12 +198,14 @@ def _cmd_read(args, deps: Deps, out: TextIO) -> int:
             if not runs:
                 print("No runs yet.", file=out)
                 return 0
-            print(f"{'ID':<5}{'DATE':<12}{'STATUS':<14}{'ISSUE':<26}{'MODEL':<22}"
+            print(f"{'ID':<5}{'DATE':<12}{'STATUS':<14}{'ISSUE':<26}{'MODEL':<26}"
                   f"{'TOKENS':<10}COST", file=out)
             for r in runs:
                 cost = "unknown" if r.cost is None else format(r.cost, "f")
+                issue = _clip_left(f"{r.repo}#{r.issue_number}", 24)
+                model = _clip_left(r.model.rsplit("/", 1)[-1], 24)
                 print(f"{r.id:<5}{r.started_at[:10]:<12}{r.status:<14}"
-                      f"{f'{r.repo}#{r.issue_number}':<26}{r.model[:20]:<22}"
+                      f"{issue:<26}{model:<26}"
                       f"{r.input_tokens + r.output_tokens:<10}{cost}", file=out)
             return 0
         if args.command == "show":

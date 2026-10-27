@@ -374,6 +374,15 @@ def test_runs_on_an_empty_database():
     assert code == 0 and "No runs" in out
 
 
+def test_long_runs_labels_keep_their_end_and_leave_a_gap():
+    from app.cli import _clip_left
+
+    long = "/tmp/some/very/long/scratch/folder/sample_repo#1"
+    clipped = _clip_left(long, 24)
+    assert len(clipped) == 24 and clipped.startswith("…") and clipped.endswith("sample_repo#1")
+    assert _clip_left("octo/demo#7", 24) == "octo/demo#7"
+
+
 def test_bad_arguments_exit_with_argparse_code(source):
     with pytest.raises(SystemExit) as exc:
         run_cli(["run", "--repo", str(source)], make_deps())  # --issue missing
