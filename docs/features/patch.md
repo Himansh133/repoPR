@@ -15,6 +15,7 @@ Rejected: deletes, renames, copies, mode changes, binary patches, paths with `..
 ## Design notes
 - The parser counts hunk lines using the numbers in each `@@` header, so a removed line like `--- text` is not mistaken for a new file header. Short hunks, long hunks, stray prose and missing headers are all errors with a line number.
 - A missing final newline is added before applying, since models often leave it off.
+- Before parsing, `apply_patch` recounts each `@@` header from the hunk body (like `git apply --recount`), since models often get the counts wrong while the lines are right. A bare empty line inside a hunk counts as a blank context line. `parse_diff` on its own stays strict, and the recounted diff still has to pass every check and `git apply --check`. Found in the first live eval: 5 of 6 rejected diffs had wrong counts.
 - Git runs as a fixed argument list, no shell, hooks disabled (`core.hooksPath=/dev/null`), no prompts, 60 s timeout. A hook planted in the copy does not run (tested).
 - On failure nothing changes: the check runs before applying, and a failure after applying resets and cleans the tree.
 - Error messages are short and replace the temp path with `<repo>`.

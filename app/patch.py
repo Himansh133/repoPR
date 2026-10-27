@@ -71,6 +71,49 @@ def _header_path(line: str) -> str:
     return line[4:].split("\t")[0].rstrip("\r")
 
 
+def _ends_hunk(lines: list[str], i: int) -> bool:
+    line = lines[i]
+    if line.startswith(("@@", "diff --git ")):
+        return True
+    # A removed line can look like "--- x"; it is only a file header if "+++ " follows.
+    return line.startswith("--- ") and i + 1 < len(lines) and lines[i + 1].startswith("+++ ")
+
+
+def recount_hunks(diff: str) -> str:
+    """Rewrite each hunk header's line counts from the hunk body (like `git apply --recount`).
+
+    Models often get the counts wrong while the lines themselves are right. A bare empty
+    line inside a hunk is read as a blank context line; blank lines at a hunk's end are
+    dropped. Anything else that is not a hunk line ends the hunk and is left for
+    parse_diff to reject. Start line numbers are kept; git apply finds the context itself.
+    """
+    if not isinstance(diff, str):
+        return diff
+    lines = diff.split("\n")
+    out: list[str] = []
+    i, n = 0, len(lines)
+    while i < n:
+        m = _HUNK.match(lines[i])
+        if not m:
+            out.append(lines[i])
+            i += 1
+            continue
+        rest = lines[i][m.end():]
+        i += 1
+        body: list[str] = []
+        while i < n and not _ends_hunk(lines, i) and lines[i][:1] in (" ", "-", "+", "\\", ""):
+            body.append(lines[i])
+            i += 1
+        while body and body[-1] == "":
+            body.pop()
+        body = [line or " " for line in body]
+        old = sum(1 for line in body if line[:1] in (" ", "-"))
+        new = sum(1 for line in body if line[:1] in (" ", "+"))
+        out.append(f"@@ -{m.group(1)},{old} +{m.group(3)},{new} @@{rest}")
+        out.extend(body)
+    return "\n".join(out)
+
+
 def parse_diff(
     diff: str, max_bytes: int = MAX_DIFF_BYTES, max_files: int = MAX_PATCH_FILES
 ) -> list[FilePatch]:
@@ -200,6 +243,7 @@ class WorkingCopy:
 
     def apply_patch(self, diff: str) -> PatchResult:
         """Validate, check and apply a diff, then commit it. Changes nothing on failure."""
+        diff = recount_hunks(diff)
         patches = parse_diff(diff)
         self._check_filesystem(patches)
         data = (diff if diff.endswith("\n") else diff + "\n").encode()

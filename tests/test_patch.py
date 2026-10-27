@@ -249,6 +249,42 @@ def test_patch_that_does_not_apply_changes_nothing(wc):
     assert git(wc.root, "status", "--porcelain") == ""
 
 
+@pytest.mark.parametrize("header", ["@@ -3,9 +3,12 @@", "@@ -3,2 +3,3 @@", "@@ -3 +3 @@"])
+def test_wrong_hunk_counts_are_recounted_and_apply(wc, header):
+    wrong = GOOD.replace("@@ -3,6 +3,8 @@", header)
+    with pytest.raises(PatchError):
+        parse_diff(wrong)  # still strict on its own
+    result = wc.apply_patch(wrong)
+    assert (result.added, result.removed) == (2, 0)
+    assert "@@ -3,6 +3,8 @@" in result.diff
+    assert "if not prices" in (wc.root / "shop" / "cart.py").read_text()
+
+
+def test_bare_empty_context_lines_are_recounted_as_blank_lines(wc):
+    stripped = GOOD.replace("\n \n", "\n\n").replace("@@ -3,6 +3,8 @@", "@@ -3,5 +3,5 @@")
+    wc.apply_patch(stripped)
+    assert "if not prices" in (wc.root / "shop" / "cart.py").read_text()
+
+
+def test_recount_keeps_header_like_removed_lines_and_rejects_prose():
+    from app.patch import recount_hunks
+
+    looks_like_header = "--- a/f.txt\n+++ b/f.txt\n@@ -1,9 +1,9 @@\n--- not a header\n keep\n"
+    assert parse_diff(recount_hunks(looks_like_header))[0].removed == 1
+    prose = "--- a/f.txt\n+++ b/f.txt\n@@ -1,3 +1,3 @@\n-a\n+b\nsome trailing prose\n"
+    with pytest.raises(PatchError):
+        parse_diff(recount_hunks(prose))
+
+
+def test_recounted_patch_that_does_not_match_the_file_still_fails(wc):
+    wrong = make_diff("shop/cart.py", CART.replace("average", "mean"), FIXED)
+    miscounted = wrong.replace("@@ -1,8 +1,10 @@", "@@ -1,2 +1,2 @@")
+    assert miscounted != wrong
+    with pytest.raises(PatchError, match="does not apply"):
+        wc.apply_patch(miscounted)
+    assert git(wc.root, "status", "--porcelain") == ""
+
+
 def test_modifying_a_missing_file_fails(wc):
     with pytest.raises(PatchError, match="not found"):
         wc.apply_patch(make_diff("shop/ghost.py", "a\n", "b\n"))
