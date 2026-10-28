@@ -23,17 +23,17 @@ class Settings(BaseSettings):
 
     llm_timeout_s: float = 60
     llm_max_retries: int = 3
-    max_output_tokens: int = 1200
+    max_output_tokens: int = 4000
     max_file_bytes: int = 50_000
 
     agent_max_steps: int = 12
-    agent_max_total_tokens: int = 30_000
+    agent_max_total_tokens: int = 80_000
     agent_timeout_s: float = 120
     agent_max_invalid_calls: int = 3
     max_files_per_investigation: int = 10
 
     agent_run_max_steps: int = 24
-    agent_run_max_tokens: int = 60_000
+    agent_run_max_tokens: int = 150_000
     agent_run_timeout_s: float = 300
     agent_max_repairs: int = 2
 

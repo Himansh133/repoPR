@@ -45,7 +45,7 @@ class Status(StrEnum):
 @dataclass(frozen=True)
 class Budgets:
     max_steps: int = 12
-    max_tokens: int = 30_000
+    max_tokens: int = 80_000
     timeout_s: float = 120
     max_invalid_calls: int = 3  # in a row
 

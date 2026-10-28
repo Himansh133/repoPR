@@ -12,7 +12,7 @@ Default tests never call a real model. This is how to try the real thing.
    with `issue.json` = `{"title": "average_price crashes on an empty cart", "body": "average_price([]) raises ZeroDivisionError; it should return 0."}`.
 6. Look at the result with `repopilot show 1` and `repopilot usage`.
 
-Costs money: a run is capped at 60,000 tokens, at most 5 runs per day, and the daily spend cap (default 5.00) blocks further runs.
+Costs money: a run is capped at 150,000 tokens, at most 5 runs per day, and the daily spend cap (default 5.00) blocks further runs.
 
 ## First real draft PR (you run this)
 

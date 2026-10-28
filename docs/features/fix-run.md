@@ -30,7 +30,7 @@ any working state -> ABORTED
 `result.reason` explains the status. Only `passed` means the fix is shown to work.
 
 ## Budgets (settings)
-Whole run: 24 steps (`AGENT_RUN_MAX_STEPS`), 60,000 tokens (`AGENT_RUN_MAX_TOKENS`), 300 s (`AGENT_RUN_TIMEOUT_S`), 2 repairs (`AGENT_MAX_REPAIRS`). The investigation phase has its own smaller share (12 steps, 30,000 tokens) taken out of the same totals.
+Whole run: 24 steps (`AGENT_RUN_MAX_STEPS`), 150,000 tokens (`AGENT_RUN_MAX_TOKENS`), 300 s (`AGENT_RUN_TIMEOUT_S`), 2 repairs (`AGENT_MAX_REPAIRS`). The investigation phase has its own smaller share (12 steps, 80,000 tokens) taken out of the same totals.
 
 ## Report
 `## Plan`, `## Proposed changes` (branch, files, +/-, diff capped at 8,000 characters), `## Test results` (before the patch, after each patch, repair attempts used), `## Unresolved`, `## Usage`. Proposed changes, passed/failed tests and unresolved items are kept apart. An aborted run says "No patch was produced" and "Run stopped early" as appropriate.
