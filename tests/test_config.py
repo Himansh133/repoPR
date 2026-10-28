@@ -37,7 +37,7 @@ def test_defaults(monkeypatch):
     assert s.gmi_base_url == "https://api.gmi-serving.com/v1"
     assert s.llm_timeout_s == 60
     assert s.llm_max_retries == 3
-    assert s.max_output_tokens == 1200
+    assert s.max_output_tokens == 4000
     assert s.max_file_bytes == 50_000
     assert s.github_token is None
     assert s.price_in_per_m is None

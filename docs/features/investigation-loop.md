@@ -21,7 +21,7 @@ The model ends by calling `submit_plan(summary, cited_files, steps)`. This is ha
 | Limit | Default |
 |---|---|
 | LLM calls (steps) | 12 |
-| Total tokens | 30,000 |
+| Total tokens | 80,000 |
 | Wall clock | 120 s |
 | Invalid calls in a row | 3 |
 | Distinct files read | 10 (`ToolLimits`) |

@@ -66,7 +66,7 @@ def test_budgets_from_settings(monkeypatch):
     monkeypatch.setenv("GMI_MODEL", "m")
     monkeypatch.setenv("AGENT_MAX_STEPS", "5")
     b = Budgets.from_settings(Settings(_env_file=None))
-    assert (b.max_steps, b.max_tokens, b.timeout_s, b.max_invalid_calls) == (5, 30_000, 120, 3)
+    assert (b.max_steps, b.max_tokens, b.timeout_s, b.max_invalid_calls) == (5, 80_000, 120, 3)
 
 
 # --- normal flow --------------------------------------------------------------

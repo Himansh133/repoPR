@@ -94,7 +94,7 @@ def test_run_budgets_from_settings(monkeypatch):
     monkeypatch.setenv("GMI_MODEL", "m")
     monkeypatch.setenv("AGENT_MAX_REPAIRS", "1")
     b = RunBudgets.from_settings(Settings(_env_file=None))
-    assert (b.max_steps, b.max_tokens, b.timeout_s, b.max_repairs) == (24, 60_000, 300, 1)
+    assert (b.max_steps, b.max_tokens, b.timeout_s, b.max_repairs) == (24, 150_000, 300, 1)
 
 
 # --- passing run --------------------------------------------------------------

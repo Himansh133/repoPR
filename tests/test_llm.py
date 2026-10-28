@@ -69,7 +69,7 @@ async def test_success_returns_text_and_usage(client):
     assert result.latency_s >= 0
     sent = route.calls.last.request
     assert sent.headers["authorization"] == "Bearer sk-test"
-    assert b'"max_tokens":1200' in sent.content.replace(b" ", b"")
+    assert b'"max_tokens":4000' in sent.content.replace(b" ", b"")
     assert b"test-model" in sent.content
 
 

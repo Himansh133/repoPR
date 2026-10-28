@@ -64,12 +64,12 @@ class RunBudgets:
     """Limits for the whole run. The investigation phase gets its own smaller share."""
 
     max_steps: int = 24
-    max_tokens: int = 60_000
+    max_tokens: int = 150_000
     timeout_s: float = 300
     max_invalid_calls: int = 3
     max_repairs: int = 2
     investigation_steps: int = 12
-    investigation_tokens: int = 30_000
+    investigation_tokens: int = 80_000
 
     @classmethod
     def from_settings(cls, s: Settings) -> "RunBudgets":
