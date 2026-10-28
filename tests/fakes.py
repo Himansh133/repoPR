@@ -86,7 +86,12 @@ class FakeSandbox:
     def __init__(self, *script, on_call=None):
         self._script = list(script)
         self.calls: list[dict] = []
+        self.prepared: list[str] = []
         self._on_call = on_call
+
+    def prepare(self, profile, workdir):
+        self.prepared.append(profile)
+        return None
 
     def run_tests(self, profile, workdir):
         cart = Path(workdir) / "shop" / "cart.py"

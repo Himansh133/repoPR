@@ -3,6 +3,10 @@
 The model never supplies a command. It can only name an approved profile, and the
 profile's command is fixed here. Containers run with no network, a non-root user, a
 read-only filesystem and mount, dropped capabilities, and CPU/memory/process/time limits.
+
+A profile may also have a fixed install command (`npm ci --ignore-scripts`). It runs once,
+before the tests, in its own container: that one has network and a writable mount so it
+can fill `node_modules`, but runs no package scripts. The tests still run offline.
 """
 
 import os
@@ -22,6 +26,16 @@ MAX_RAW_BYTES = 200_000
 MAX_FAILED_NAMES = 50
 MAX_NAME_CHARS = 200
 _FAILED_LINE = re.compile(r"^(?:FAILED|ERROR) (\S+)", re.MULTILINE)
+# node --test (TAP and spec reporters), vitest/jest "FAIL <file> > <name>", jest "● <name>"
+_NODE_FAILED_LINE = re.compile(
+    r"^(?:not ok \d+ - (.+)|\s*✖ (.+?)(?: \([\d.]+m?s\))?|\s*FAIL\s+(.+)|\s*● (.+))$",
+    re.MULTILINE,
+)
+_NO_NPM_TEST = ('Missing script: "test"', "Error: no test specified")
+_PYTHON_MARKERS = ("pyproject.toml", "setup.py", "setup.cfg", "pytest.ini", "tox.ini",
+                   "requirements.txt")
+INSTALL_MEMORY = "2g"
+INSTALL_TMPFS = "1g"
 
 
 class SandboxError(Exception):
@@ -47,9 +61,15 @@ class SandboxProfile:
     cpus: str = "1"
     pids: int = 128
     tmpfs_size: str = "64m"
+    env: tuple[str, ...] = ()
+    install: tuple[str, ...] | None = None  # runs once before the tests, with network
+    cache_dirs: tuple[str, ...] = ()  # repo-relative; writable tmpfs during the test run
+    install_timeout_s: int = 300
 
 
-def default_profiles(image: str = "repopilot-pytest", timeout_s: int = 60):
+def default_profiles(
+    image: str = "repopilot-pytest", timeout_s: int = 60, node_image: str = "repopilot-node"
+):
     return {
         "python-pytest": SandboxProfile(
             name="python-pytest",
@@ -58,8 +78,29 @@ def default_profiles(image: str = "repopilot-pytest", timeout_s: int = 60):
                 "python", "-m", "pytest", "-x", "-q", "-rf", "--tb=short", "-p", "no:cacheprovider",
             ),
             timeout_s=timeout_s,
-        )
+        ),
+        "node-npm": SandboxProfile(
+            name="node-npm",
+            image=node_image,
+            command=("npm", "test"),
+            timeout_s=timeout_s,
+            memory="1g",
+            pids=256,
+            env=("CI=true", "NO_COLOR=1", "FORCE_COLOR=0", "npm_config_update_notifier=false"),
+            install=("npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund"),
+            cache_dirs=("node_modules/.vite", "node_modules/.cache"),
+        ),
     }
+
+
+def detect_profile(root: str | Path) -> str:
+    """`node-npm` for a repo with a package.json and no Python project files, else pytest."""
+    path = Path(root)
+    if (path / "package.json").is_file() and not any(
+        (path / m).exists() for m in _PYTHON_MARKERS
+    ):
+        return "node-npm"
+    return "python-pytest"
 
 
 @dataclass(frozen=True)
@@ -103,19 +144,52 @@ def build_command(profile: SandboxProfile, workdir: Path, name: str) -> list[str
         "--cpus", profile.cpus,
         "--pids-limit", str(profile.pids),
         "--mount", f"type=bind,source={workdir},target=/work,readonly",
+        *[a for d in profile.cache_dirs
+          for a in ("--tmpfs", f"/work/{d}:rw,noexec,nosuid,mode=1777,size={profile.tmpfs_size}")],
         "-w", "/work",
         "-e", "PYTHONDONTWRITEBYTECODE=1",
         "-e", "HOME=/tmp",
+        *[a for e in profile.env for a in ("-e", e)],
         profile.image,
         *profile.command,
     ]
 
 
-def parse_failed_tests(log: str) -> list[str]:
-    """Names from pytest `FAILED x::y` / `ERROR x` summary lines. Deduped, capped."""
+def build_install_command(
+    profile: SandboxProfile, workdir: Path, name: str, user: str
+) -> list[str]:
+    """The `docker run` list for a profile's install step.
+
+    Unlike the test run it has network and a writable mount, and runs as the host user so
+    the files it writes belong to them. Everything else stays locked down, and the install
+    command itself (no package scripts) is fixed in the profile.
+    """
+    assert profile.install is not None
+    return [
+        "docker", "run", "--rm", "--name", name,
+        "--user", user,
+        "--read-only",
+        "--tmpfs", f"/tmp:rw,noexec,nosuid,size={INSTALL_TMPFS}",
+        "--cap-drop", "ALL",
+        "--security-opt", "no-new-privileges",
+        "--memory", INSTALL_MEMORY, "--memory-swap", INSTALL_MEMORY,
+        "--cpus", profile.cpus,
+        "--pids-limit", str(profile.pids),
+        "--mount", f"type=bind,source={workdir},target=/work",
+        "-w", "/work",
+        "-e", "HOME=/tmp",
+        *[a for e in profile.env for a in ("-e", e)],
+        profile.image,
+        *profile.install,
+    ]
+
+
+def parse_failed_tests(log: str, profile: str = "python-pytest") -> list[str]:
+    """Names of failed tests from the runner's summary lines. Deduped, capped."""
+    pattern = _NODE_FAILED_LINE if profile == "node-npm" else _FAILED_LINE
     names: list[str] = []
-    for match in _FAILED_LINE.finditer(log):
-        name = match.group(1)[:MAX_NAME_CHARS]
+    for match in pattern.finditer(log):
+        name = next(g for g in match.groups() if g is not None).strip()[:MAX_NAME_CHARS]
         if name not in names:
             names.append(name)
         if len(names) >= MAX_FAILED_NAMES:
@@ -191,8 +265,72 @@ class Sandbox:
         self.max_log_chars = max_log_chars
         self._results: dict[str, Execution] = {}
 
+    def prepare(self, profile_name: str, workdir: str | Path) -> float | None:
+        """Run the profile's install step, if it has one. Returns its duration in seconds.
+
+        Raises SandboxError if the install cannot run or fails.
+        """
+        profile, path = self._check(profile_name, workdir)
+        if profile.install is None:
+            return None
+        if not (path / "package-lock.json").is_file():
+            raise SandboxError("Node repos need a package-lock.json (npm ci installs from it)")
+        name = f"repopilot-{uuid.uuid4().hex[:12]}"
+        user = f"{os.getuid()}:{os.getgid()}"
+        started = time.monotonic()
+        raw = self.docker.run(
+            build_install_command(profile, path, name, user), profile.install_timeout_s, name
+        )
+        duration = time.monotonic() - started
+        if raw.timed_out:
+            raise SandboxError("dependency install exceeded the time limit")
+        if raw.returncode != 0:
+            text = raw.output.decode("utf-8", errors="replace").strip()
+            tail = " | ".join(text.splitlines()[-3:])[:300]
+            raise SandboxError(f"dependency install failed (exit {raw.returncode}): {tail}")
+        for d in profile.cache_dirs:  # mount points for the test run's tmpfs caches
+            target = path / d
+            if not target.resolve().is_relative_to(path):
+                raise SandboxError(f"{d} points outside the repository")
+            target.mkdir(parents=True, exist_ok=True)
+        return duration
+
     def run_tests(self, profile_name: str, workdir: str | Path) -> Execution:
         """Run a profile on a directory. Raises SandboxError if it cannot even start."""
+        profile, path = self._check(profile_name, workdir)
+        name = f"repopilot-{uuid.uuid4().hex[:12]}"
+        started = time.monotonic()
+        raw = self.docker.run(build_command(profile, path, name), profile.timeout_s, name)
+        duration = time.monotonic() - started
+
+        text = raw.output.decode("utf-8", errors="replace")
+        if raw.returncode == 125:  # docker itself could not start the container
+            first = (text.strip().splitlines() or ["docker failed"])[0]
+            raise SandboxError(f"Docker could not start the container: {first[:200]}")
+
+        if profile.name == "node-npm":
+            status, reason = self._classify_npm(raw, text)
+        else:
+            status, reason = self._classify(raw)
+        result = Execution(
+            id=uuid.uuid4().hex[:12],
+            profile=profile.name,
+            status=status,
+            exit_code=raw.returncode,
+            duration_s=duration,
+            failed_tests=parse_failed_tests(text, profile.name),
+            log_tail=text[-self.max_log_chars :],
+            truncated=raw.output_cut or len(text) > self.max_log_chars,
+            reason=reason,
+        )
+        self._results[result.id] = result
+        return result
+
+    def get_results(self, execution_id: str) -> Execution | None:
+        """Look up an earlier run by id."""
+        return self._results.get(execution_id)
+
+    def _check(self, profile_name: str, workdir: str | Path) -> tuple[SandboxProfile, Path]:
         profile = self.profiles.get(profile_name) if isinstance(profile_name, str) else None
         if profile is None:
             raise SandboxError(
@@ -205,35 +343,16 @@ class Sandbox:
         path = path.resolve()
         if any(c in str(path) for c in ",:\n"):
             raise SandboxError("Working directory path contains unsupported characters")
+        return profile, path
 
-        name = f"repopilot-{uuid.uuid4().hex[:12]}"
-        started = time.monotonic()
-        raw = self.docker.run(build_command(profile, path, name), profile.timeout_s, name)
-        duration = time.monotonic() - started
-
-        text = raw.output.decode("utf-8", errors="replace")
-        if raw.returncode == 125:  # docker itself could not start the container
-            first = (text.strip().splitlines() or ["docker failed"])[0]
-            raise SandboxError(f"Docker could not start the container: {first[:200]}")
-
-        status, reason = self._classify(raw)
-        result = Execution(
-            id=uuid.uuid4().hex[:12],
-            profile=profile.name,
-            status=status,
-            exit_code=raw.returncode,
-            duration_s=duration,
-            failed_tests=parse_failed_tests(text),
-            log_tail=text[-self.max_log_chars :],
-            truncated=raw.output_cut or len(text) > self.max_log_chars,
-            reason=reason,
-        )
-        self._results[result.id] = result
-        return result
-
-    def get_results(self, execution_id: str) -> Execution | None:
-        """Look up an earlier run by id."""
-        return self._results.get(execution_id)
+    @staticmethod
+    def _classify_npm(raw: RawRun, text: str) -> tuple[ExecStatus, str | None]:
+        """npm exits 1 for any test failure; pytest's other exit codes mean nothing here."""
+        if raw.timed_out or raw.returncode in (0, 137):
+            return Sandbox._classify(raw)
+        if any(marker in text for marker in _NO_NPM_TEST):
+            return ExecStatus.INCONCLUSIVE, "the repo has no npm test script"
+        return ExecStatus.FAILED, None
 
     @staticmethod
     def _classify(raw: RawRun) -> tuple[ExecStatus, str | None]:

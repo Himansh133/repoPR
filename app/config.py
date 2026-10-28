@@ -41,8 +41,9 @@ class Settings(BaseSettings):
     max_runs_per_day: int = 5
     allow_unpriced: bool = False
 
-    sandbox_profile: str = "python-pytest"
+    sandbox_profile: str = "auto"  # or "python-pytest" / "node-npm"
     sandbox_image: str = "repopilot-pytest"
+    sandbox_node_image: str = "repopilot-node"
     sandbox_timeout_s: int = 60
 
     price_in_per_m: Decimal | None = None

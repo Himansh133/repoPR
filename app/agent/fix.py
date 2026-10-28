@@ -35,7 +35,7 @@ from app.config import Settings
 from app.github import Issue
 from app.llm import LLMError
 from app.patch import PatchError, PatchResult, WorkingCopy
-from app.sandbox import ExecStatus, Execution, Sandbox, SandboxError
+from app.sandbox import ExecStatus, Execution, Sandbox, SandboxError, detect_profile
 from app.tools.dispatcher import Dispatcher
 from app.tools.schemas import function_spec, tool_specs
 from app.workspace import Workspace
@@ -156,8 +156,14 @@ class _Run:
 
     async def execute(self) -> RunResult:
         self.machine.transition(State.INVESTIGATE, "start")
+        if self.profile == "auto":
+            self.profile = detect_profile(self.wc.root)
 
         try:
+            install_s = self.sandbox.prepare(self.profile, self.wc.root)
+            if install_s is not None:
+                self.events.record("install", state=self.machine.state.value,
+                                   profile=self.profile, duration_s=round(install_s, 2))
             self.baseline = self.sandbox.run_tests(self.profile, self.wc.root)
         except SandboxError as exc:
             return self._abort(f"sandbox error: {exc}")

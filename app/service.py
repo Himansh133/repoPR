@@ -74,7 +74,9 @@ def _default_clone(url: str, dest: Path) -> Path:
 
 
 def _default_sandbox(settings: Settings) -> Sandbox:
-    profiles = default_profiles(settings.sandbox_image, settings.sandbox_timeout_s)
+    profiles = default_profiles(
+        settings.sandbox_image, settings.sandbox_timeout_s, settings.sandbox_node_image
+    )
     return Sandbox(profiles=profiles)
 
 

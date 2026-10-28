@@ -43,10 +43,11 @@ repopilot compare evals/results/<run>
 Exit codes for `run`: 0 passed, 1 failed, 3 inconclusive, 4 aborted, 5 usage or budget error.
 
 ## Safety
-Repo, issue and test-output text is untrusted and never followed as instructions. No model-written commands. Tests run in a locked-down container (no network, non-root, read-only, resource limits). Paths cannot escape the repo. Budgets cap steps, tokens, time, repairs, daily runs and daily spend. See [docs/security.md](docs/security.md).
+Repo, issue and test-output text is untrusted and never followed as instructions. No model-written commands. Tests run in a locked-down container (no network, non-root, read-only, resource limits). Node dependencies are installed beforehand by a fixed `npm ci --ignore-scripts` in a separate container. Paths cannot escape the repo. Budgets cap steps, tokens, time, repairs, daily runs and daily spend. See [docs/security.md](docs/security.md).
 
 ## Limitations
-- Python repos tested with pytest only; the sandbox image has no other packages, so tests that need third-party dependencies will fail.
+- Python repos are tested with pytest only, and the image has no other packages, so Python tests that need third-party dependencies will fail.
+- Node repos run `npm test` and need a `package-lock.json`. Dependencies are installed once, so a patch that adds one will not get it.
 - Nothing has been run against a real model yet; see [docs/live-testing.md](docs/live-testing.md).
 - The dashboard (`/ui/`, see `docs/features/dashboard.md`) has component tests; a full manual pass in a real browser is still to do. Draft PRs are tested against mocked GitHub only so far.
 - The bundled benchmark has three easy synthetic issues. Real comparisons need real issues.

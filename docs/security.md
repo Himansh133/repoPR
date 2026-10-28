@@ -22,6 +22,7 @@ Safety controls and the tests that cover them. One line per control.
 - Patches are parsed strictly: size and file limits; no deletes, renames, mode changes or binary patches; no `..`, absolute, backslash, `.git` or `.github` paths; no symlink paths. Tested. (Chunk 4A)
 - Patches are applied only in a temp clone, never in the user's checkout; git hooks are disabled and a planted hook does not run. Tested. (Chunk 4A)
 - Sandbox: fixed profiles only (no model commands, no shell); no network, non-root, read-only root and mount, dropped capabilities, memory/CPU/process/time limits; timeouts force-remove the container; logs are bounded in memory and in the result. Tested with a mocked Docker layer and with a real container. (Chunk 4B)
+- Node repos: dependencies are installed once by a fixed `npm ci --ignore-scripts` (no package scripts run) from the committed `package-lock.json`, in a separate locked-down container that has network. The tests then run offline with the repo mounted read-only, like the Python profile. The model cannot choose the profile or the install command. Tested with a mocked Docker layer and checked by hand against a real container.
 - Timeout, out-of-memory and sandbox errors are `violation`, which aborts the run. (Chunk 4B)
 - The model cannot run tests or commands; the backend runs the fixed profile after each patch. `run_tests` and `run_shell` requests are refused. Tested. (Chunk 4C)
 - A run is `passed` only if tests failed before the patch and pass after it; no tests, or already passing, is `inconclusive`. Tested. (Chunk 4C)
