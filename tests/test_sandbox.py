@@ -14,6 +14,9 @@ from app.sandbox import (
     SandboxProfile,
     SubprocessDocker,
     build_command,
+    build_install_command,
+    default_profiles,
+    detect_profile,
     parse_failed_tests,
 )
 
@@ -258,3 +261,117 @@ def test_runner_reports_missing_docker(monkeypatch, tmp_path):
     monkeypatch.setenv("PATH", str(tmp_path))
     with pytest.raises(SandboxError, match="not installed"):
         SubprocessDocker().run(["docker", "run"], timeout_s=5, name="n")
+
+
+# --- node-npm profile -------------------------------------------------------------
+
+NODE = default_profiles()["node-npm"]
+
+
+def make_node(*runs):
+    docker = FakeDocker(*runs)
+    return Sandbox(docker=docker, profiles={"node-npm": NODE}), docker
+
+
+def test_detect_profile(tmp_path):
+    assert detect_profile(tmp_path) == "python-pytest"
+    (tmp_path / "package.json").write_text("{}")
+    assert detect_profile(tmp_path) == "node-npm"
+    (tmp_path / "pyproject.toml").write_text("")
+    assert detect_profile(tmp_path) == "python-pytest"
+
+
+def test_node_test_run_is_offline_and_read_only(workdir):
+    argv = build_command(NODE, workdir, "n")
+    joined = " ".join(argv)
+    assert "--network none" in joined and "--read-only" in joined
+    assert f"type=bind,source={workdir},target=/work,readonly" in joined
+    assert "CI=true" in argv and "NO_COLOR=1" in argv
+    assert "/work/node_modules/.vite:rw,noexec,nosuid,mode=1777,size=64m" in argv
+    assert argv[-2:] == ["npm", "test"]
+
+
+def test_install_has_network_but_no_package_scripts(workdir):
+    argv = build_install_command(NODE, workdir, "n", "1000:1000")
+    joined = " ".join(argv)
+    assert "--network" not in argv
+    assert f"type=bind,source={workdir},target=/work" in joined and "readonly" not in joined
+    for flag in ("--read-only", "--cap-drop ALL", "--security-opt no-new-privileges",
+                 "--user 1000:1000", "--memory 2g"):
+        assert flag in joined, flag
+    assert argv[-5:] == ["npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund"]
+    assert "sh -c" not in joined
+
+
+def test_prepare_runs_install_once(workdir):
+    (workdir / "package-lock.json").write_text("{}")
+    sandbox, docker = make_node(raw(0))
+    assert sandbox.prepare("node-npm", workdir) is not None
+    assert docker.calls[0]["argv"][-5:-3] == ["npm", "ci"]
+    assert (workdir / "node_modules" / ".vite").is_dir()
+    assert docker.calls[0]["timeout_s"] == NODE.install_timeout_s
+
+
+def test_prepare_refuses_a_node_modules_symlink_out_of_the_repo(workdir, tmp_path):
+    (workdir / "package-lock.json").write_text("{}")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (workdir / "node_modules").symlink_to(outside)
+    sandbox, _ = make_node(raw(0))
+    with pytest.raises(SandboxError, match="outside the repository"):
+        sandbox.prepare("node-npm", workdir)
+    assert list(outside.iterdir()) == []
+
+
+def test_prepare_needs_a_lockfile(workdir):
+    sandbox, docker = make_node()
+    with pytest.raises(SandboxError, match="package-lock.json"):
+        sandbox.prepare("node-npm", workdir)
+    assert docker.calls == []
+
+
+def test_prepare_failure_and_timeout_raise(workdir):
+    (workdir / "package-lock.json").write_text("{}")
+    sandbox, _ = make_node(raw(1, b"npm ERR! 404 Not Found"), raw(timed_out=True, code=None))
+    with pytest.raises(SandboxError, match="install failed .*404"):
+        sandbox.prepare("node-npm", workdir)
+    with pytest.raises(SandboxError, match="time limit"):
+        sandbox.prepare("node-npm", workdir)
+
+
+def test_prepare_is_a_no_op_without_install(workdir):
+    sandbox, docker = make(raw(0))
+    assert sandbox.prepare("python-pytest", workdir) is None
+    assert docker.calls == []
+
+
+@pytest.mark.parametrize(
+    "code,out,status",
+    [
+        (0, b"# pass 3", ExecStatus.PASSED),
+        (1, b"not ok 1 - adds", ExecStatus.FAILED),
+        (2, b"something odd", ExecStatus.FAILED),
+        (5, b"", ExecStatus.FAILED),
+        (1, b'npm error Missing script: "test"', ExecStatus.INCONCLUSIVE),
+        (1, b"Error: no test specified", ExecStatus.INCONCLUSIVE),
+        (137, b"", ExecStatus.VIOLATION),
+    ],
+)
+def test_npm_exit_codes(workdir, code, out, status):
+    sandbox, _ = make_node(raw(code, out))
+    assert sandbox.run_tests("node-npm", workdir).status is status
+
+
+def test_node_failed_test_names():
+    log = (
+        "not ok 1 - total adds tax\n"
+        "  ✖ shipping is free over 50 (1.2ms)\n"
+        " FAIL  src/cart.test.ts > cart > empty\n"
+        "  ● checkout › applies coupons\n"
+        "ok 2 - unrelated\n"
+    )
+    assert parse_failed_tests(log, "node-npm") == [
+        "total adds tax", "shipping is free over 50", "src/cart.test.ts > cart > empty",
+        "checkout › applies coupons",
+    ]
+    assert parse_failed_tests(log) == []

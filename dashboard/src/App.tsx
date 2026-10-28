@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { getKey, setUnauthorizedHandler } from "./api";
 import { KeyGate } from "./components/KeyGate";
+import { RunDetail } from "./components/RunDetail";
+import { RunForm } from "./components/RunForm";
 import { RunList } from "./components/RunList";
 
 function useHash(): string {
@@ -34,17 +36,12 @@ export function App() {
       </header>
       <main>
         {runId ? (
-          <section aria-labelledby="run-title">
-            <h1 id="run-title" className="text-lg font-semibold">
-              Run #{runId}
-            </h1>
-            <p className="text-muted">Run details are coming in the next chunk.</p>
-            <a href="#/" className="text-link hover:underline">
-              ← All runs
-            </a>
-          </section>
+          <RunDetail key={runId} runId={Number(runId)} />
         ) : (
-          <RunList />
+          <>
+            <RunForm />
+            <RunList />
+          </>
         )}
       </main>
     </div>

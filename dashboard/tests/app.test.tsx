@@ -19,7 +19,7 @@ describe("App", () => {
       window.location.hash = "#/runs/1";
       window.dispatchEvent(new HashChangeEvent("hashchange"));
     });
-    expect(screen.getByRole("heading", { name: "Run #1" })).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "← All runs" })).toBeTruthy();
   });
 
   it("returns to the key screen when the key stops working", async () => {

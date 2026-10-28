@@ -23,3 +23,19 @@ export function run(over: Partial<RunSummary> = {}): RunSummary {
     output_tokens: 700, cost: "0.0011", cost_estimated: false, pr_url: null, ...over,
   };
 }
+
+/** A streamed text/event-stream response delivered in the given chunks. */
+export function sseResponse(chunks: string[]): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const c of chunks) controller.enqueue(encoder.encode(c));
+      controller.close();
+    },
+  });
+  return new Response(stream, { status: 200, headers: { "Content-Type": "text/event-stream" } });
+}
+
+export function detail(over: Record<string, unknown> = {}) {
+  return { ...run(), report: "Status: PASSED\nplan...", ...over };
+}

@@ -20,3 +20,40 @@ export interface RunSummary {
   cost_estimated: boolean;
   pr_url: string | null;
 }
+
+export interface Run extends RunSummary {
+  report: string | null;
+}
+
+export interface Patch {
+  commit_sha: string;
+  files: string[];
+  added: number;
+  removed: number;
+  diff: string;
+}
+
+export interface Execution {
+  kind: "baseline" | "after_patch";
+  status: string;
+  exit_code: number | null;
+  duration_s: number;
+  failed_tests: string[];
+  truncated: boolean;
+  reason: string | null;
+}
+
+export interface AgentEvent {
+  ts: number;
+  state: string | null;
+  kind: string;
+  data: Record<string, unknown>;
+}
+
+export interface NewRun {
+  repo: string;
+  issue: number;
+  issue_title?: string;
+  issue_body?: string;
+  allow_unpriced: boolean;
+}

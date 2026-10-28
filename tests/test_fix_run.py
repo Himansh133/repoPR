@@ -127,6 +127,27 @@ async def test_passes_on_the_first_try(source):
     ]
 
 
+async def test_auto_profile_is_detected_and_prepared_before_the_baseline(source):
+    llm = FakeLLM([*investigate_script(), propose(CART, RIGHT)])
+    sandbox = FakeSandbox(FAILING, PASSING)
+    result = await go(source, llm, sandbox, profile="auto")
+    assert result.status is RunStatus.PASSED
+    assert sandbox.prepared == ["python-pytest"]
+    assert [c["profile"] for c in sandbox.calls] == ["python-pytest", "python-pytest"]
+
+
+async def test_install_failure_aborts_before_any_model_call(source):
+    sandbox = FakeSandbox()
+    sandbox.prepare = lambda profile, workdir: (_ for _ in ()).throw(
+        SandboxError("dependency install failed (exit 1): 404")
+    )
+    llm = FakeLLM([])
+    result = await go(source, llm, sandbox)
+    assert result.status is RunStatus.ABORTED
+    assert "install failed" in result.reason
+    assert llm.calls == []
+
+
 # --- repair -------------------------------------------------------------------
 
 async def test_events_are_streamed_to_a_listener_as_they_happen(source):
