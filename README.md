@@ -48,7 +48,7 @@ Repo, issue and test-output text is untrusted and never followed as instructions
 ## Limitations
 - Python repos tested with pytest only; the sandbox image has no other packages, so tests that need third-party dependencies will fail.
 - Nothing has been run against a real model yet; see [docs/live-testing.md](docs/live-testing.md).
-- The dashboard is partly built: key screen and run history only (`docs/features/dashboard.md`). Draft PRs are tested against mocked GitHub only so far.
+- The dashboard (`/ui/`, see `docs/features/dashboard.md`) has component tests; a full manual pass in a real browser is still to do. Draft PRs are tested against mocked GitHub only so far.
 - The bundled benchmark has three easy synthetic issues. Real comparisons need real issues.
 
 ## Project status
@@ -71,7 +71,7 @@ Repo, issue and test-output text is untrusted and never followed as instructions
 | 6 | Model comparison report | Waiting for a live GMI run | - |
 | 7 | Draft PR with approval gate | Done (mocked GitHub), live PR pending | 512 total (+11 Docker, +2 live); 440 without ripgrep installed |
 | 8 (A) | FastAPI layer | Done | 569 total (+11 Docker, +2 live); 497 without ripgrep installed |
-| 8 (B) | Dashboard | In progress: serving, key screen, run history (3 of 9 tasks) | +14 dashboard tests (`npm test`) |
+| 8 (B) | Dashboard | Done (component tests); manual real-browser pass pending | +31 dashboard tests (`npm test`) |
 | 8 (C) | Release polish | Not started | - |
 
 ## Docs

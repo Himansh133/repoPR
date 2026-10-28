@@ -28,7 +28,7 @@
 - `app/api.py` and `repopilot serve`: FastAPI layer with API-key auth, background runs, live SSE events, diff/tests/cost endpoints, approve/reject, rate limits.
 - `app/service.py`: run and approval logic shared by the CLI and the API.
 - `EventLog` listener (`on_event`) for live event streaming; `Database.fail_stale_runs`.
-- `dashboard/`: React + Vite + Tailwind UI served at `/ui/` (tasks 1-3: serving, API key screen, run history); spec in `docs/specs/dashboard.md`.
+- `dashboard/`: React + Vite + Tailwind UI served at `/ui/` with API key screen, issue form, run history, live timeline, diff viewer, test results and approve/reject panel; spec in `docs/specs/dashboard.md`.
 
 ### Fixed
 - `app/patch.py`: hunk header counts are recounted from the hunk body before validation, so a correct patch with miscounted headers is no longer rejected.
