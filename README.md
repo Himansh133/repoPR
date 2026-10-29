@@ -46,8 +46,8 @@ No agent framework (decision 001). Each choice has a short record in `docs/decis
 ## Setup
 ```
 python3 -m venv .venv
-.venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pip install -e .
+.venv/bin/pip install -r requirements.lock      # exact versions CI uses
+.venv/bin/pip install --no-deps -e .
 ./docker/build.sh                 # builds the sandbox images once (needs Docker)
 cp .env.example .env              # then fill it in (see docs/live-testing.md)
 .venv/bin/pytest                  # no network, no model, no Docker needed (CI runs this too)
