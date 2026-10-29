@@ -3,12 +3,11 @@
 from pathlib import Path
 
 from app.agent.fix import RunResult, RunStatus
-from app.report import build_report
-
 from app.agent.plan import CitedFile, Plan
 from app.agent.states import State
 from app.github import Issue
 from app.patch import PatchResult
+from app.report import build_report
 from app.sandbox import ExecStatus
 from tests.fakes import execution
 
