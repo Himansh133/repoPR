@@ -31,6 +31,7 @@
 - `dashboard/`: React + Vite + Tailwind UI served at `/ui/` with API key screen, issue form, run history, live timeline, diff viewer, test results and approve/reject panel; spec in `docs/specs/dashboard.md`.
 - `docs/demo.md`: demo script; `docs/images/`: dashboard screenshots and a demo GIF captured from stored runs.
 - Cancel a running run: `POST /runs/{id}/cancel`, a `should_stop` check at every step of the agent, and a **Cancel run** button in the dashboard. The run ends `aborted` with the reason `cancelled`.
+- Python sandbox: a `requirements.txt` is installed once, wheels only, into a folder outside the repo that the offline tests see read-only on `PYTHONPATH`; options, paths and URLs in the file are refused; `Sandbox.release` deletes the folder when the run ends.
 
 ### Changed
 - `README.md`: architecture diagram, screenshots and demo GIF, benchmark results, live draft PRs, current limitations and status.

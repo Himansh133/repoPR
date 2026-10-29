@@ -93,10 +93,10 @@ Before that fix (`evals/results/20261027-211901`) the same model resolved 2 of 3
 Real issues: run #9 (repopilot-demo issue #1) and run #10 (issue #3) passed and were turned into draft PRs [#2](https://github.com/Himansh133/repopilot-demo/pull/2) and [#4](https://github.com/Himansh133/repopilot-demo/pull/4) after approval.
 
 ## Safety
-Repo, issue and test-output text is untrusted and never followed as instructions. No model-written commands. Tests run in a locked-down container (no network, non-root, read-only, resource limits). Node dependencies are installed beforehand by a fixed `npm ci --ignore-scripts` in a separate container. Paths cannot escape the repo. Budgets cap steps, tokens, time, repairs, daily runs and daily spend. Pull requests are drafts, need an explicit approval, and use a separate write token. The API and dashboard need a key and listen on 127.0.0.1 by default. See [docs/security.md](docs/security.md).
+Repo, issue and test-output text is untrusted and never followed as instructions. No model-written commands. Tests run in a locked-down container (no network, non-root, read-only, resource limits). Dependencies are installed beforehand in a separate container that runs no package code: `npm ci --ignore-scripts` for Node, wheels-only `pip install` from `requirements.txt` for Python. Paths cannot escape the repo. Budgets cap steps, tokens, time, repairs, daily runs and daily spend. Pull requests are drafts, need an explicit approval, and use a separate write token. The API and dashboard need a key and listen on 127.0.0.1 by default. See [docs/security.md](docs/security.md).
 
 ## Limitations
-- Python repos are tested with pytest only, and the image has no other packages, so Python tests that need third-party dependencies will fail.
+- Python repos are tested with pytest only. Dependencies are installed from `requirements.txt` as wheels only; packages without a wheel, and dependencies listed only in `pyproject.toml` or `setup.py`, are not installed.
 - Node repos run `npm test` and need a `package-lock.json`. Dependencies are installed once, so a patch that adds one will not get it.
 - Only one model (DeepSeek-V4-Flash on GMI) has been run live, so there is no model comparison yet.
 - The bundled benchmark has three easy synthetic issues. Real comparisons need real issues.

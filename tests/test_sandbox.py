@@ -3,6 +3,7 @@
 import os
 import stat
 import time
+from pathlib import Path
 
 import pytest
 
@@ -375,3 +376,80 @@ def test_node_failed_test_names():
         "checkout › applies coupons",
     ]
     assert parse_failed_tests(log) == []
+
+
+# --- python dependencies ------------------------------------------------------------
+
+PY = default_profiles()["python-pytest"]
+
+
+def make_py(*runs):
+    docker = FakeDocker(*runs)
+    return Sandbox(docker=docker, profiles={"python-pytest": PY}), docker
+
+
+def mounts(argv):
+    return [argv[i + 1] for i, a in enumerate(argv) if a == "--mount"]
+
+
+def test_python_prepare_is_a_no_op_without_requirements(workdir):
+    sandbox, docker = make_py()
+    assert sandbox.prepare("python-pytest", workdir) is None
+    assert docker.calls == []
+
+
+def test_python_install_uses_wheels_only_into_a_folder_outside_the_repo(workdir):
+    (workdir / "requirements.txt").write_text("# deps\nrequests==2.32.3\n\nattrs>=23\n")
+    sandbox, docker = make_py(raw(0), raw(0, b"1 passed"))
+    assert sandbox.prepare("python-pytest", workdir) is not None
+    argv = docker.calls[0]["argv"]
+    assert argv[argv.index("repopilot-pytest") + 1:] == [
+        "python", "-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check",
+        "--no-input", "--only-binary=:all:", "--target", "/deps", "-r", "requirements.txt",
+    ]
+    repo_mount, deps_mount = mounts(argv)
+    assert repo_mount == f"type=bind,source={workdir},target=/work,readonly"
+    deps = deps_mount.split("source=")[1].split(",")[0]
+    assert deps_mount == f"type=bind,source={deps},target=/deps"
+    assert os.path.isdir(deps) and not Path(deps).is_relative_to(workdir)
+    assert "--network" not in argv and "--read-only" in argv
+
+    sandbox.run_tests("python-pytest", workdir)
+    test_argv = docker.calls[1]["argv"]
+    assert f"type=bind,source={deps},target=/deps,readonly" in mounts(test_argv)
+    assert "PYTHONPATH=/deps" in test_argv
+    assert test_argv[test_argv.index("--network") + 1] == "none"
+
+
+@pytest.mark.parametrize("line", [
+    "-e .", "--no-binary :all:", "-r other.txt", "--index-url https://evil.example/simple",
+    "./local_pkg", "/abs/pkg", "pkg @ https://example.com/pkg.whl", "git+https://x/y.git",
+])
+def test_python_install_refuses_options_paths_and_urls(workdir, line):
+    (workdir / "requirements.txt").write_text(f"requests==2.32.3\n{line}\n")
+    sandbox, docker = make_py()
+    with pytest.raises(SandboxError, match="requirements.txt line 2"):
+        sandbox.prepare("python-pytest", workdir)
+    assert docker.calls == []
+
+
+def test_python_install_failure_removes_the_deps_folder(workdir):
+    (workdir / "requirements.txt").write_text("nosuchpkg==1\n")
+    sandbox, docker = make_py(raw(1, b"ERROR: No matching distribution found for nosuchpkg==1"))
+    with pytest.raises(SandboxError, match="No matching distribution"):
+        sandbox.prepare("python-pytest", workdir)
+    deps = mounts(docker.calls[0]["argv"])[1].split("source=")[1].split(",")[0]
+    assert not os.path.exists(deps)
+
+
+def test_release_removes_the_deps_folder(workdir):
+    (workdir / "requirements.txt").write_text("attrs==23.2.0\n")
+    sandbox, docker = make_py(raw(0), raw(0))
+    sandbox.prepare("python-pytest", workdir)
+    deps = mounts(docker.calls[0]["argv"])[1].split("source=")[1].split(",")[0]
+    sandbox.release(workdir)
+    sandbox.release(workdir)  # safe to call twice
+    assert not os.path.exists(deps)
+    sandbox.run_tests("python-pytest", workdir)
+    argv = docker.calls[1]["argv"]
+    assert len(mounts(argv)) == 1 and "PYTHONPATH=/deps" not in argv

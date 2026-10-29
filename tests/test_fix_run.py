@@ -404,6 +404,15 @@ async def test_events_do_not_store_diffs_or_test_logs(source):
     assert {"baseline", "patch_proposed", "tests_run", "llm_call"} <= kinds
 
 
+async def test_installed_packages_are_released_when_the_run_ends(source):
+    passing = FakeSandbox(FAILING, PASSING)
+    result = await go(source, FakeLLM([*investigate_script(), propose(CART, RIGHT)]), passing)
+    assert passing.released == [result.workdir]
+    aborted = FakeSandbox(FAILING)
+    result = await go(source, FakeLLM([LLMRateLimitError("slow down")]), aborted)
+    assert aborted.released == [result.workdir]
+
+
 # --- cancel -------------------------------------------------------------------
 
 async def test_cancel_before_the_baseline_runs_nothing(source):

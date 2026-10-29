@@ -159,6 +159,12 @@ class _Run:
     # --- the workflow ------------------------------------------------------------------
 
     async def execute(self) -> RunResult:
+        try:
+            return await self._execute()
+        finally:
+            self.sandbox.release(self.wc.root)  # installed packages are not needed any more
+
+    async def _execute(self) -> RunResult:
         self.machine.transition(State.INVESTIGATE, "start")
         if self.profile == "auto":
             self.profile = detect_profile(self.wc.root)

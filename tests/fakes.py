@@ -87,11 +87,15 @@ class FakeSandbox:
         self._script = list(script)
         self.calls: list[dict] = []
         self.prepared: list[str] = []
+        self.released: list[Path] = []
         self._on_call = on_call
 
     def prepare(self, profile, workdir):
         self.prepared.append(profile)
         return None
+
+    def release(self, workdir):
+        self.released.append(Path(workdir))
 
     def run_tests(self, profile, workdir):
         cart = Path(workdir) / "shop" / "cart.py"

@@ -4,15 +4,19 @@ The model never supplies a command. It can only name an approved profile, and th
 profile's command is fixed here. Containers run with no network, a non-root user, a
 read-only filesystem and mount, dropped capabilities, and CPU/memory/process/time limits.
 
-A profile may also have a fixed install command (`npm ci --ignore-scripts`). It runs once,
-before the tests, in its own container: that one has network and a writable mount so it
-can fill `node_modules`, but runs no package scripts. The tests still run offline.
+A profile may also have a fixed install command. It runs once, before the tests, in its
+own container, which has network but runs no package code: `npm ci --ignore-scripts` fills
+`node_modules`, and `pip install --only-binary=:all:` installs wheels from `requirements.txt`
+into a folder outside the repo, which the tests then see read-only. The tests still run
+offline.
 """
 
 import os
 import re
+import shutil
 import signal
 import subprocess
+import tempfile
 import threading
 import time
 import uuid
@@ -34,6 +38,9 @@ _NODE_FAILED_LINE = re.compile(
 _NO_NPM_TEST = ('Missing script: "test"', "Error: no test specified")
 _PYTHON_MARKERS = ("pyproject.toml", "setup.py", "setup.cfg", "pytest.ini", "tox.ini",
                    "requirements.txt")
+# Options, paths, URLs and direct references could make pip build or fetch code from
+# elsewhere; only "name[extras] <version spec> [; marker]" lines are installed.
+_REFUSED_REQUIREMENT = re.compile(r"^[-./~]|://|@|\\")
 INSTALL_MEMORY = "2g"
 INSTALL_TMPFS = "1g"
 
@@ -63,6 +70,9 @@ class SandboxProfile:
     tmpfs_size: str = "64m"
     env: tuple[str, ...] = ()
     install: tuple[str, ...] | None = None  # runs once before the tests, with network
+    install_needs: str | None = None  # repo file the install cannot run without
+    install_if: str | None = None  # install only when this repo file exists
+    deps_target: str | None = None  # install into a folder outside the repo, mounted here
     cache_dirs: tuple[str, ...] = ()  # repo-relative; writable tmpfs during the test run
     install_timeout_s: int = 300
 
@@ -78,6 +88,12 @@ def default_profiles(
                 "python", "-m", "pytest", "-x", "-q", "-rf", "--tb=short", "-p", "no:cacheprovider",
             ),
             timeout_s=timeout_s,
+            install=(
+                "python", "-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check",
+                "--no-input", "--only-binary=:all:", "--target", "/deps", "-r", "requirements.txt",
+            ),
+            install_if="requirements.txt",
+            deps_target="/deps",
         ),
         "node-npm": SandboxProfile(
             name="node-npm",
@@ -88,6 +104,7 @@ def default_profiles(
             pids=256,
             env=("CI=true", "NO_COLOR=1", "FORCE_COLOR=0", "npm_config_update_notifier=false"),
             install=("npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund"),
+            install_needs="package-lock.json",
             cache_dirs=("node_modules/.vite", "node_modules/.cache"),
         ),
     }
@@ -130,8 +147,30 @@ class DockerRunner(Protocol):
     def run(self, argv: list[str], timeout_s: float, name: str) -> RawRun: ...
 
 
-def build_command(profile: SandboxProfile, workdir: Path, name: str) -> list[str]:
-    """The exact `docker run` argument list for a profile. No shell is involved."""
+def check_requirements(path: Path) -> None:
+    """Refuse a requirements file with anything but plain package requirements."""
+    for n, line in enumerate(path.read_text(errors="replace").splitlines(), 1):
+        req = line.split("#", 1)[0].strip()
+        if req and _REFUSED_REQUIREMENT.search(req):
+            raise SandboxError(
+                f"{path.name} line {n} is not supported (only package names, extras, versions "
+                f"and markers): {req[:80]}"
+            )
+
+
+def build_command(
+    profile: SandboxProfile, workdir: Path, name: str, deps: Path | None = None
+) -> list[str]:
+    """The exact `docker run` argument list for a profile. No shell is involved.
+
+    `deps` is the folder the install step filled; it is mounted read-only on the path
+    in `profile.deps_target` and put on PYTHONPATH.
+    """
+    deps_args = (
+        ["--mount", f"type=bind,source={deps},target={profile.deps_target},readonly",
+         "-e", f"PYTHONPATH={profile.deps_target}"]
+        if deps and profile.deps_target else []
+    )
     return [
         "docker", "run", "--rm", "--name", name,
         "--network", "none",
@@ -144,6 +183,7 @@ def build_command(profile: SandboxProfile, workdir: Path, name: str) -> list[str
         "--cpus", profile.cpus,
         "--pids-limit", str(profile.pids),
         "--mount", f"type=bind,source={workdir},target=/work,readonly",
+        *deps_args,
         *[a for d in profile.cache_dirs
           for a in ("--tmpfs", f"/work/{d}:rw,noexec,nosuid,mode=1777,size={profile.tmpfs_size}")],
         "-w", "/work",
@@ -156,15 +196,21 @@ def build_command(profile: SandboxProfile, workdir: Path, name: str) -> list[str
 
 
 def build_install_command(
-    profile: SandboxProfile, workdir: Path, name: str, user: str
+    profile: SandboxProfile, workdir: Path, name: str, user: str, deps: Path | None = None
 ) -> list[str]:
     """The `docker run` list for a profile's install step.
 
     Unlike the test run it has network and a writable mount, and runs as the host user so
     the files it writes belong to them. Everything else stays locked down, and the install
-    command itself (no package scripts) is fixed in the profile.
+    command itself (no package scripts) is fixed in the profile. With `deps`, only that
+    folder is writable and the repo is mounted read-only.
     """
     assert profile.install is not None
+    if deps and profile.deps_target:
+        mounts = ["--mount", f"type=bind,source={workdir},target=/work,readonly",
+                  "--mount", f"type=bind,source={deps},target={profile.deps_target}"]
+    else:
+        mounts = ["--mount", f"type=bind,source={workdir},target=/work"]
     return [
         "docker", "run", "--rm", "--name", name,
         "--user", user,
@@ -175,7 +221,7 @@ def build_install_command(
         "--memory", INSTALL_MEMORY, "--memory-swap", INSTALL_MEMORY,
         "--cpus", profile.cpus,
         "--pids-limit", str(profile.pids),
-        "--mount", f"type=bind,source={workdir},target=/work",
+        *mounts,
         "-w", "/work",
         "-e", "HOME=/tmp",
         *[a for e in profile.env for a in ("-e", e)],
@@ -264,6 +310,7 @@ class Sandbox:
         self.profiles = profiles if profiles is not None else default_profiles()
         self.max_log_chars = max_log_chars
         self._results: dict[str, Execution] = {}
+        self._deps: dict[Path, Path] = {}  # working copy -> its installed packages
 
     def prepare(self, profile_name: str, workdir: str | Path) -> float | None:
         """Run the profile's install step, if it has one. Returns its duration in seconds.
@@ -273,21 +320,37 @@ class Sandbox:
         profile, path = self._check(profile_name, workdir)
         if profile.install is None:
             return None
-        if not (path / "package-lock.json").is_file():
-            raise SandboxError("Node repos need a package-lock.json (npm ci installs from it)")
+        if profile.install_if:
+            trigger = path / profile.install_if
+            if not trigger.is_file():
+                return None
+            if trigger.name == "requirements.txt":
+                check_requirements(trigger)
+        if profile.install_needs and not (path / profile.install_needs).is_file():
+            raise SandboxError(
+                f"This repo needs a {profile.install_needs} (the install step installs from it)"
+            )
+        deps = None
+        if profile.deps_target:
+            deps = Path(tempfile.mkdtemp(prefix="repopilot-deps-", dir=path.parent))
         name = f"repopilot-{uuid.uuid4().hex[:12]}"
         user = f"{os.getuid()}:{os.getgid()}"
         started = time.monotonic()
         raw = self.docker.run(
-            build_install_command(profile, path, name, user), profile.install_timeout_s, name
+            build_install_command(profile, path, name, user, deps), profile.install_timeout_s,
+            name,
         )
         duration = time.monotonic() - started
-        if raw.timed_out:
-            raise SandboxError("dependency install exceeded the time limit")
-        if raw.returncode != 0:
+        if raw.timed_out or raw.returncode != 0:
+            if deps:
+                shutil.rmtree(deps, ignore_errors=True)
+            if raw.timed_out:
+                raise SandboxError("dependency install exceeded the time limit")
             text = raw.output.decode("utf-8", errors="replace").strip()
             tail = " | ".join(text.splitlines()[-3:])[:300]
             raise SandboxError(f"dependency install failed (exit {raw.returncode}): {tail}")
+        if deps:
+            self._deps[path] = deps
         for d in profile.cache_dirs:  # mount points for the test run's tmpfs caches
             target = path / d
             if not target.resolve().is_relative_to(path):
@@ -300,7 +363,9 @@ class Sandbox:
         profile, path = self._check(profile_name, workdir)
         name = f"repopilot-{uuid.uuid4().hex[:12]}"
         started = time.monotonic()
-        raw = self.docker.run(build_command(profile, path, name), profile.timeout_s, name)
+        raw = self.docker.run(
+            build_command(profile, path, name, self._deps.get(path)), profile.timeout_s, name
+        )
         duration = time.monotonic() - started
 
         text = raw.output.decode("utf-8", errors="replace")
@@ -325,6 +390,12 @@ class Sandbox:
         )
         self._results[result.id] = result
         return result
+
+    def release(self, workdir: str | Path) -> None:
+        """Delete the packages installed for `workdir`, if any. Safe to call twice."""
+        deps = self._deps.pop(Path(workdir).resolve(), None)
+        if deps:
+            shutil.rmtree(deps, ignore_errors=True)
 
     def get_results(self, execution_id: str) -> Execution | None:
         """Look up an earlier run by id."""

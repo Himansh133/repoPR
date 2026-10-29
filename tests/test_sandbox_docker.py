@@ -146,3 +146,36 @@ def test_no_tests_is_inconclusive(repo):
     result = Sandbox().run_tests("python-pytest", repo)
     assert result.status is ExecStatus.INCONCLUSIVE
     assert result.exit_code == 5
+
+
+def test_requirements_are_installed_outside_the_repo_and_seen_read_only(repo):
+    (repo / "requirements.txt").write_text("six==1.16.0\n")
+    add_test(repo, (
+        "import os, pathlib, six\n"
+        "def test_six_is_importable_and_read_only():\n"
+        "    assert six.PY3\n"
+        "    assert pathlib.Path(six.__file__).is_relative_to('/deps')\n"
+        "    assert not os.access('/deps', os.W_OK)\n"
+    ))
+    cart = repo / "shop" / "cart.py"  # fix the fixture bug so -x reaches the probe
+    cart.write_text(cart.read_text().replace(
+        "    return sum(prices) / len(prices)",
+        "    if not prices:\n        return 0\n    return sum(prices) / len(prices)",
+    ))
+    sandbox = Sandbox()
+    assert sandbox.prepare("python-pytest", repo) is not None
+    assert not (repo / "six.py").exists()
+    result = sandbox.run_tests("python-pytest", repo)
+    assert result.status is ExecStatus.PASSED, result.log_tail
+    deps = [p for p in repo.parent.iterdir() if p.name.startswith("repopilot-deps-")]
+    assert len(deps) == 1
+    sandbox.release(repo)
+    assert not deps[0].exists()
+
+
+def test_a_package_without_a_wheel_fails_the_install_cleanly(repo):
+    (repo / "requirements.txt").write_text("repopilot-no-such-package-xyz==9.9.9\n")
+    sandbox = Sandbox()
+    with pytest.raises(Exception, match="dependency install failed"):
+        sandbox.prepare("python-pytest", repo)
+    assert not [p for p in repo.parent.iterdir() if p.name.startswith("repopilot-deps-")]
