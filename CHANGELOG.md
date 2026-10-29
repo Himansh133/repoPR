@@ -34,3 +34,4 @@
 - `app/patch.py`: hunk header counts are recounted from the hunk body before validation, so a correct patch with miscounted headers is no longer rejected.
 - `repopilot runs`: long repo and model names are shortened so columns no longer run together.
 - Eval table and `summary.json`: cost per issue is rounded to 8 decimal places.
+- Dashboard: violet text (timeline event kinds, diff `@@` lines) now uses `#a78bfa` (6.51:1 on panels) instead of `#8b5cf6` (4.18:1, below WCAG AA).

@@ -63,7 +63,7 @@ describe("RunDetail", () => {
     const line = (text: string) => screen.findByText((_, el) => el?.tagName === "DIV" && el.textContent === text);
     expect((await line("+    if not prices:")).className).toContain("text-success");
     expect((await line("-    old")).className).toContain("text-error");
-    expect((await line("@@ -1,2 +1,3 @@")).className).toContain("text-primary");
+    expect((await line("@@ -1,2 +1,3 @@")).className.split(" ")).toContain("text-primary-text");
     expect(await line("+    <script>alert(1)</script>")).toBeTruthy();
     expect(container.querySelector("script")).toBeNull();
   });

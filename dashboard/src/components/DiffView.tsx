@@ -6,7 +6,7 @@ function lineClass(line: string): string {
   if (line.startsWith("+++") || line.startsWith("---") || line.startsWith("diff ") || line.startsWith("index ")) {
     return "text-muted";
   }
-  if (line.startsWith("@@")) return "text-primary";
+  if (line.startsWith("@@")) return "text-primary-text";
   if (line.startsWith("+")) return "bg-success/10 text-success";
   if (line.startsWith("-")) return "bg-error/10 text-error";
   return "";

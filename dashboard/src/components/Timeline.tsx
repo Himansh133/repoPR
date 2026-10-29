@@ -52,7 +52,7 @@ export function Timeline({ runId, onEnd }: { runId: number; onEnd?: (status: str
         {events.map((e, i) => (
           <li key={i} className="rounded bg-panel px-3 py-1">
             <span className="text-muted">{new Date(e.ts * 1000).toLocaleTimeString()}</span>{" "}
-            <span className="font-medium text-primary">{e.kind}</span>
+            <span className="font-medium text-primary-text">{e.kind}</span>
             {e.state && <span className="text-muted"> [{e.state}]</span>} <span>{summary(e.data ?? {})}</span>
           </li>
         ))}
