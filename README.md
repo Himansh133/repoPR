@@ -1,5 +1,7 @@
 # RepoPilot
 
+[![CI](https://github.com/Himansh133/repoPR/actions/workflows/ci.yml/badge.svg)](https://github.com/Himansh133/repoPR/actions/workflows/ci.yml)
+
 An AI agent that takes a GitHub issue, proposes a minimal patch, and proves it with tests in a Docker sandbox. It never creates a pull request without explicit approval.
 
 The model never gets to say "it works". Only test results count. A run ends `passed`, `failed`, `inconclusive` or `aborted`, and the report keeps proposed changes, test results and unresolved items apart.
@@ -48,7 +50,7 @@ python3 -m venv .venv
 .venv/bin/pip install -e .
 ./docker/build.sh                 # builds the sandbox images once (needs Docker)
 cp .env.example .env              # then fill it in (see docs/live-testing.md)
-.venv/bin/pytest                  # no network, no model, no Docker needed
+.venv/bin/pytest                  # no network, no model, no Docker needed (CI runs this too)
 cd dashboard && npm ci && npm run build   # optional: the web UI (Node 20+)
 ```
 Optional: install `ripgrep` (`sudo apt install ripgrep`). Without it, search falls back to pure Python.
@@ -124,6 +126,7 @@ Repo, issue and test-output text is untrusted and never followed as instructions
 | 8 (A) | FastAPI layer | Done | 569 total (+11 Docker, +2 live); 497 without ripgrep installed |
 | 8 (B) | Dashboard | Done; real-browser pass recorded in `docs/features/dashboard.md` | +31 dashboard tests (`npm test`) |
 | 8 (C) | Release polish | Done | 589 total (+13 Docker and live); 517 without ripgrep installed; +31 dashboard |
+| 9 | CI, cancel a run, stored decisions, Python dependencies | Done | 609 total (+13 Docker, +2 live); 537 without ripgrep installed; +37 dashboard |
 
 ## Docs
 `docs/features/` (one page per feature), `docs/decisions/` (why), `docs/security.md`, `docs/live-testing.md`, `docs/demo.md`, `CHANGELOG.md`.

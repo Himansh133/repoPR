@@ -32,6 +32,7 @@
 - `docs/demo.md`: demo script; `docs/images/`: dashboard screenshots and a demo GIF captured from stored runs.
 - Cancel a running run: `POST /runs/{id}/cancel`, a `should_stop` check at every step of the agent, and a **Cancel run** button in the dashboard. The run ends `aborted` with the reason `cancelled`.
 - Python sandbox: a `requirements.txt` is installed once, wheels only, into a folder outside the repo that the offline tests see read-only on `PYTHONPATH`; options, paths and URLs in the file are refused; `Sandbox.release` deletes the folder when the run ends.
+- `.github/workflows/ci.yml`: `ruff check` and `pytest` on Python 3.11 and 3.12 (with ripgrep), and the dashboard's `npm test`, typecheck and build on Node 20, for every push to `main` and every PR. No secrets; Docker and live tests are not run.
 
 ### Changed
 - `README.md`: architecture diagram, screenshots and demo GIF, benchmark results, live draft PRs, current limitations and status.
