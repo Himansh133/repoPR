@@ -280,7 +280,11 @@ def create_app(
 
     @api.get("/runs/{run_id}")
     def read_run(run_id: int) -> dict[str, Any]:
-        return _run_json(with_db(lambda db: get_run(db, run_id)))
+        def go(db):
+            run = get_run(db, run_id)
+            approvals = db.get_approvals(run.id)
+            return {**_run_json(run), "decision": approvals[-1] if approvals else None}
+        return with_db(go)
 
     @api.get("/runs/{run_id}/diff")
     def read_diff(run_id: int) -> dict[str, Any]:

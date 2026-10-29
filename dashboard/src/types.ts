@@ -21,8 +21,15 @@ export interface RunSummary {
   pr_url: string | null;
 }
 
+export interface Decision {
+  decision: "approved" | "rejected";
+  decided_at: string;
+  note: string;
+}
+
 export interface Run extends RunSummary {
   report: string | null;
+  decision?: Decision | null; // the latest approve/reject, from the approvals table
 }
 
 export interface Patch {

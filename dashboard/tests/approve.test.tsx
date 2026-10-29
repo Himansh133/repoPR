@@ -54,6 +54,19 @@ describe("ApprovePanel", () => {
     expect(fetchMock.mock.calls.map(([u]) => u)).toEqual(["/runs/1/reject"]);
   });
 
+  it("shows a stored rejection instead of the buttons after a reload", () => {
+    const decision = { decision: "rejected" as const, decided_at: "2026-10-29T10:00:00", note: "too broad" };
+    render(<ApprovePanel run={{ ...passed, decision }} onChange={vi.fn()} />);
+    expect(screen.getByText(/Rejected on 2026-10-29 10:00/).textContent).toContain("too broad");
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("keeps the buttons when an approval failed to create the PR", () => {
+    const decision = { decision: "approved" as const, decided_at: "2026-10-29T10:00:00", note: "" };
+    render(<ApprovePanel run={{ ...passed, decision }} onChange={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Approve…" })).toBeTruthy();
+  });
+
   it("shows server errors", async () => {
     stubFetch(() => json(502, { detail: "Approved, but the draft PR was not created: 422" }));
     render(<ApprovePanel run={passed} onChange={vi.fn()} />);

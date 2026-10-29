@@ -35,6 +35,7 @@
 - `README.md`: architecture diagram, screenshots and demo GIF, benchmark results, live draft PRs, current limitations and status.
 
 ### Fixed
+- `GET /runs/{id}` returns the latest approve/reject `decision`, and the dashboard shows a stored rejection after a reload instead of offering the buttons again.
 - `app/patch.py`: hunk header counts are recounted from the hunk body before validation, so a correct patch with miscounted headers is no longer rejected.
 - `repopilot runs`: long repo and model names are shortened so columns no longer run together.
 - Eval table and `summary.json`: cost per issue is rounded to 8 decimal places.

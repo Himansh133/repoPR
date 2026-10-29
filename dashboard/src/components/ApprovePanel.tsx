@@ -25,6 +25,16 @@ export function ApprovePanel({ run, onChange }: { run: Run; onChange: () => void
   if (rejected) {
     return <p className="rounded border border-border bg-panel p-3">Rejected. Nothing was sent to GitHub.</p>;
   }
+  // An approval without a PR means the PR step failed, so the buttons stay for a retry.
+  if (run.decision?.decision === "rejected") {
+    const { decided_at, note: why } = run.decision;
+    return (
+      <p className="rounded border border-border bg-panel p-3">
+        Rejected on {decided_at.replace("T", " ").slice(0, 16)}. Nothing was sent to GitHub.
+        {why && <span className="text-muted"> Note: {why}</span>}
+      </p>
+    );
+  }
 
   async function act(action: () => Promise<unknown>, after: () => void) {
     setSending(true);

@@ -312,6 +312,19 @@ def test_reject_blocks_a_later_approve(source):
     assert resp.status_code == 409 and writer.calls == []
 
 
+def test_run_shows_its_latest_decision(source):
+    client = client_for(make_deps(writer=FakeWriter()))
+    run_id = start(client, source)
+    wait_done(client, run_id)
+    assert client.get(f"/runs/{run_id}", headers=AUTH).json()["decision"] is None
+    client.post(f"/runs/{run_id}/reject", json={"note": "too broad"}, headers=AUTH)
+    decision = client.get(f"/runs/{run_id}", headers=AUTH).json()["decision"]
+    assert decision["decision"] == "rejected" and decision["note"] == "too broad"
+    assert decision["decided_at"]
+    listed = client.get("/runs", headers=AUTH).json()["runs"][0]
+    assert "decision" not in listed
+
+
 def test_a_running_run_cannot_be_approved(source):
     gate = Gate()
     writer = FakeWriter()

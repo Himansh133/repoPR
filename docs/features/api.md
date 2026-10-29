@@ -17,7 +17,7 @@ Interactive docs: `http://127.0.0.1:8000/docs`. Every endpoint except `/health` 
 | `GET /health` | `status`, `version`, `gmi_configured`, `docker`. No key needed, no secrets. |
 | `POST /runs` | Start a run. Body: `repo` (local git repo or `https://github.com/o/r`), `issue`, optional `github`, `issue_title` + `issue_body` (skip GitHub), `allow_unpriced`. **202** with `{id, status: "running", events}`. |
 | `GET /runs?limit=20` | Recent runs, without reports. |
-| `GET /runs/{id}` | One run with its report and `pr_url`. |
+| `GET /runs/{id}` | One run with its report, `pr_url` and `decision` (the latest approve/reject: `decision`, `decided_at`, `note`; `null` if none). |
 | `GET /runs/{id}/events` | Server-sent events: each agent event as `event: <kind>` / `data: <json>`, live while the run is going, then `event: end` with the final status. A finished run's stored events are replayed. |
 | `GET /runs/{id}/diff` | The patches (files, line counts, diff). |
 | `GET /runs/{id}/tests` | Baseline and after-patch test results. |

@@ -101,7 +101,6 @@ Repo, issue and test-output text is untrusted and never followed as instructions
 - Only one model (DeepSeek-V4-Flash on GMI) has been run live, so there is no model comparison yet.
 - The bundled benchmark has three easy synthetic issues. Real comparisons need real issues.
 - A larger real repo (a Node portfolio site) ran out of investigation budget (run #12); the budgets were raised afterwards and that issue has not been retried.
-- After a page reload, the dashboard does not know a run was rejected and shows the buttons again; approving then fails with the server's message.
 
 ## Project status
 
