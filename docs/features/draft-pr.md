@@ -47,7 +47,7 @@ If step 6 fails, the new branch is deleted. The approval is recorded before step
 ## Limits
 - One PR per run. To change a fix, start a new run.
 - Branch protection, required reviews and CI are left to GitHub.
-- Not yet tried against real GitHub: the tests mock every call. See `docs/live-testing.md`.
+- Tried against real GitHub on 2026-10-28: runs #9 and #10 became draft PRs #2 and #4 on `Himansh133/repopilot-demo`. The automated tests still mock every call.
 
 ## How it is tested
 - `tests/test_pr.py` (16 tests): changes collected from a real git working copy; a moved HEAD, uncommitted edits, deletes and a missing working copy are refused; `Refs`/`Fixes`, body cap, title; the exact GitHub calls and payloads with `draft: true`; branch deleted when the PR fails; a missing base commit, an existing branch, no push access and an unknown repo stop before any write; bad input sends no request; the token never leaks.
