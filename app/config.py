@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -35,7 +35,8 @@ class Settings(BaseSettings):
     agent_run_max_steps: int = 24
     agent_run_max_tokens: int = 150_000
     agent_run_timeout_s: float = 300
-    agent_max_repairs: int = 2
+    # Hard cap: 1 patch + at most 2 repairs = at most 3 patch/test cycles per issue.
+    agent_max_repairs: int = Field(2, ge=0, le=2)
 
     daily_spend_cap: Decimal | None = Decimal("5.00")
     max_runs_per_day: int = 5

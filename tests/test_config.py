@@ -59,3 +59,18 @@ def test_secrets_not_in_repr(monkeypatch):
     text = repr(Settings(_env_file=None)) + str(Settings(_env_file=None))
     assert "sk-very-secret" not in text
     assert "ghp_very_secret" not in text
+
+
+@pytest.mark.parametrize("value", ["3", "10", "-1"])
+def test_repairs_are_capped_at_two_so_an_issue_gets_at_most_three_patch_cycles(
+    monkeypatch, value
+):
+    _clear(monkeypatch)
+    monkeypatch.setenv("GMI_API_KEY", "k")
+    monkeypatch.setenv("GMI_MODEL", "m")
+    monkeypatch.setenv("AGENT_MAX_REPAIRS", value)
+    with pytest.raises(ValidationError, match="agent_max_repairs"):
+        Settings(_env_file=None)
+    for ok in ("0", "1", "2"):
+        monkeypatch.setenv("AGENT_MAX_REPAIRS", ok)
+        assert Settings(_env_file=None).agent_max_repairs == int(ok)

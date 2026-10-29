@@ -29,7 +29,7 @@ Safety controls and the tests that cover them. One line per control.
 - A run is `passed` only if tests failed before the patch and pass after it; no tests, or already passing, is `inconclusive`. Tested. (Chunk 4C)
 - Sandbox violation, timeout or sandbox error aborts the run immediately. Tested. (Chunk 4C)
 - Repair feedback is only failed test names and 3,000 characters of output, wrapped as untrusted; events never contain diffs or test logs. Tested. (Chunk 4C)
-- Max 2 repair attempts; step, token and time budgets apply to the whole run. Tested. (Chunk 4C)
+- Max 2 repair attempts, so at most 3 patch/test cycles per issue (the spec's "max 3 plan/repair cycles"): one plan, one patch, up to two repairs. `AGENT_MAX_REPAIRS` accepts only 0 to 2, so `.env` cannot raise it. Step, token and time budgets apply to the whole run. Tested: a run that keeps failing stops after the third patch, and values above 2 are refused at startup. (Chunk 4C)
 - The database file is private (0600). Test logs and file contents are never stored; patch diffs are, bounded to 20 KB. Tested. (Chunk 5A)
 - Daily run limit (5) and daily spend cap block new runs; runs that crash still count; unpriced runs are blocked unless explicitly allowed. Tested. (Chunk 5A)
 - CLI: daily limits are checked before any clone, GitHub call or model call; only `https://github.com/<owner>/<repo>` URLs are cloned; secrets never appear in output; a crash is recorded, not hidden. Tested. (Chunk 5B)
