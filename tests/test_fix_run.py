@@ -148,6 +148,34 @@ async def test_install_failure_aborts_before_any_model_call(source):
     assert llm.calls == []
 
 
+async def test_a_patch_that_changes_requirements_reinstalls_before_its_tests(source):
+    add_req = reply(tool_call(
+        "propose_patch", {"diff": make_diff("requirements.txt", "", "attrs==23.2.0\n", True)},
+        "pp1"))
+    sandbox = FakeSandbox(FAILING, PASSING)
+    result = await go(source, FakeLLM([*investigate_script(), add_req]), sandbox)
+    assert sandbox.prepared == ["python-pytest", "python-pytest"]
+    installs = [e for e in result.events if e.kind == "install"]
+    assert [e.data.get("reason") for e in installs] == ["patch changed requirements.txt"]
+    assert len(sandbox.calls) == 2
+
+
+async def test_a_failed_reinstall_after_a_patch_aborts(source):
+    add_req = reply(tool_call(
+        "propose_patch", {"diff": make_diff("requirements.txt", "", "-e .\n", True)}, "pp1"))
+    sandbox = FakeSandbox(FAILING, PASSING)
+    real_prepare = sandbox.prepare
+
+    def prepare(profile, workdir):
+        if sandbox.prepared:
+            raise SandboxError("requirements.txt line 1 is not supported")
+        return real_prepare(profile, workdir)
+    sandbox.prepare = prepare
+    result = await go(source, FakeLLM([*investigate_script(), add_req]), sandbox)
+    assert result.status is RunStatus.ABORTED
+    assert "requirements.txt line 1" in result.reason and len(sandbox.calls) == 1
+
+
 # --- repair -------------------------------------------------------------------
 
 async def test_events_are_streamed_to_a_listener_as_they_happen(source):

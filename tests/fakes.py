@@ -97,6 +97,9 @@ class FakeSandbox:
     def release(self, workdir):
         self.released.append(Path(workdir))
 
+    def needs_reinstall(self, profile, files):
+        return any(f in ("requirements.txt", "package-lock.json") for f in files)
+
     def run_tests(self, profile, workdir):
         cart = Path(workdir) / "shop" / "cart.py"
         self.calls.append({"profile": profile, "workdir": Path(workdir), "cart": cart.read_text()})

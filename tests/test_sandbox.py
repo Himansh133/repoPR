@@ -453,3 +453,37 @@ def test_release_removes_the_deps_folder(workdir):
     sandbox.run_tests("python-pytest", workdir)
     argv = docker.calls[1]["argv"]
     assert len(mounts(argv)) == 1 and "PYTHONPATH=/deps" not in argv
+
+
+def test_needs_reinstall_only_for_the_profiles_install_files():
+    sandbox = Sandbox(docker=FakeDocker(), profiles=default_profiles())
+    assert sandbox.needs_reinstall("python-pytest", ["shop/a.py", "requirements.txt"])
+    assert not sandbox.needs_reinstall("python-pytest", ["shop/a.py", "docs/requirements.txt"])
+    assert sandbox.needs_reinstall("node-npm", ["package-lock.json"])
+    assert not sandbox.needs_reinstall("node-npm", ["src/index.js"])
+    assert not sandbox.needs_reinstall("nope", ["requirements.txt"])
+
+
+def test_a_second_python_install_replaces_the_first_folder(workdir):
+    (workdir / "requirements.txt").write_text("attrs==23.2.0\n")
+    sandbox, docker = make_py(raw(0), raw(0), raw(0))
+    sandbox.prepare("python-pytest", workdir)
+    first = mounts(docker.calls[0]["argv"])[1].split("source=")[1].split(",")[0]
+    sandbox.prepare("python-pytest", workdir)
+    second = mounts(docker.calls[1]["argv"])[1].split("source=")[1].split(",")[0]
+    assert first != second and not os.path.exists(first) and os.path.isdir(second)
+    sandbox.run_tests("python-pytest", workdir)
+    assert f"type=bind,source={second},target=/deps,readonly" in mounts(docker.calls[2]["argv"])
+    sandbox.release(workdir)
+
+
+def test_removing_requirements_drops_the_installed_packages(workdir):
+    (workdir / "requirements.txt").write_text("attrs==23.2.0\n")
+    sandbox, docker = make_py(raw(0), raw(0))
+    sandbox.prepare("python-pytest", workdir)
+    deps = mounts(docker.calls[0]["argv"])[1].split("source=")[1].split(",")[0]
+    (workdir / "requirements.txt").unlink()
+    assert sandbox.prepare("python-pytest", workdir) is None
+    assert not os.path.exists(deps)
+    sandbox.run_tests("python-pytest", workdir)
+    assert "PYTHONPATH=/deps" not in docker.calls[1]["argv"]

@@ -231,6 +231,17 @@ class _Run:
 
             if self.should_stop():
                 return self._cancel()
+            changed = [f for f in patch.files if self.sandbox.needs_reinstall(self.profile, [f])]
+            if changed:
+                try:
+                    install_s = self.sandbox.prepare(self.profile, self.wc.root)
+                except SandboxError as exc:
+                    return self._abort(f"sandbox error: {exc}")
+                self.events.record(
+                    "install", state=self.machine.state.value, profile=self.profile,
+                    reason=f"patch changed {', '.join(changed)}",
+                    duration_s=round(install_s or 0, 2),
+                )
             self.machine.transition(State.TEST, "patch applied")
             try:
                 execution = self.sandbox.run_tests(self.profile, self.wc.root)

@@ -99,7 +99,7 @@ Repo, issue and test-output text is untrusted and never followed as instructions
 
 ## Limitations
 - Python repos are tested with pytest only. Dependencies are installed from `requirements.txt` as wheels only; packages without a wheel, and dependencies listed only in `pyproject.toml` or `setup.py`, are not installed.
-- Node repos run `npm test` and need a `package-lock.json`. Dependencies are installed once, so a patch that adds one will not get it.
+- Node repos run `npm test` and need a `package-lock.json`. A patch that changes `package-lock.json` or `requirements.txt` is reinstalled before its tests; one that changes only `package.json` is not.
 - Only one model (DeepSeek-V4-Flash on GMI) has been run live, so there is no model comparison yet.
 - The bundled benchmark has three easy synthetic issues. Real comparisons need real issues.
 - A larger real repo (a Node portfolio site) ran out of investigation budget (run #12); the budgets were raised afterwards and that issue has not been retried.

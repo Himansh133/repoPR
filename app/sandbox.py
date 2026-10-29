@@ -323,6 +323,7 @@ class Sandbox:
         if profile.install_if:
             trigger = path / profile.install_if
             if not trigger.is_file():
+                self.release(path)  # a patch may have removed it
                 return None
             if trigger.name == "requirements.txt":
                 check_requirements(trigger)
@@ -350,7 +351,9 @@ class Sandbox:
             tail = " | ".join(text.splitlines()[-3:])[:300]
             raise SandboxError(f"dependency install failed (exit {raw.returncode}): {tail}")
         if deps:
-            self._deps[path] = deps
+            old, self._deps[path] = self._deps.get(path), deps
+            if old:
+                shutil.rmtree(old, ignore_errors=True)
         for d in profile.cache_dirs:  # mount points for the test run's tmpfs caches
             target = path / d
             if not target.resolve().is_relative_to(path):
@@ -390,6 +393,14 @@ class Sandbox:
         )
         self._results[result.id] = result
         return result
+
+    def needs_reinstall(self, profile_name: str, files: list[str]) -> bool:
+        """True if a patch touching `files` changes what the profile's install step installs."""
+        profile = self.profiles.get(profile_name)
+        if profile is None or profile.install is None:
+            return False
+        watched = {f for f in (profile.install_if, profile.install_needs) if f}
+        return any(f in watched for f in files)
 
     def release(self, workdir: str | Path) -> None:
         """Delete the packages installed for `workdir`, if any. Safe to call twice."""
