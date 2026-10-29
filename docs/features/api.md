@@ -24,6 +24,7 @@ Interactive docs: `http://127.0.0.1:8000/docs`. Every endpoint except `/health` 
 | `GET /runs/{id}/cost` | Total, estimate flag, tokens, and every LLM call with its cost. |
 | `POST /runs/{id}/approve` | Body `{confirm: true, closes_issue?, note?}`. Same checks as `repopilot approve`, then opens the draft PR. Returns `{id, pr_url}`. |
 | `POST /runs/{id}/reject` | Body `{note?}`. Records the rejection; nothing is sent to GitHub. |
+| `POST /runs/{id}/cancel` | 202 `{id, cancelling: true}`: the running run stops at its next step and ends `aborted` with reason `cancelled`. 409 if that run is not the one running, 404 if it does not exist. |
 
 ```
 curl -H "X-API-Key: $KEY" -H 'content-type: application/json' \
@@ -59,4 +60,4 @@ Errors are `{"detail": "<one line>"}`.
 - A local `repo` path is a path on the server's machine.
 
 ## How it is tested
-`tests/test_api.py` (54 tests, TestClient; runs execute for real in the worker thread with the fake LLM, sandbox and PR writer): startup without or with a short key; `/health`; every protected endpoint without, with a wrong and with an empty key; a full run read back through every endpoint; 422 bodies; 400 bad repos that free the run slot; 409 while a run is going (held mid-run); 429 daily limit and rate limit with `Retry-After`; a crash recorded and the slot freed; 404s; no secrets in any response; SSE replay and live streaming while the run is held; approve needs `confirm: true`, one PR per run, reject blocks approve, a running run cannot be approved; stale runs marked at startup. A mutation check (auth disabled) makes all 27 auth tests fail.
+`tests/test_api.py` (59 tests, TestClient; runs execute for real in the worker thread with the fake LLM, sandbox and PR writer): startup without or with a short key; `/health`; every protected endpoint without, with a wrong and with an empty key; a full run read back through every endpoint; 422 bodies; 400 bad repos that free the run slot; 409 while a run is going (held mid-run); 429 daily limit and rate limit with `Retry-After`; a crash recorded and the slot freed; 404s; no secrets in any response; SSE replay and live streaming while the run is held; approve needs `confirm: true`, one PR per run, reject blocks approve, a running run cannot be approved; the run response carries the latest decision; cancel stops a run held at its baseline (ends `aborted`, `cancelled`), and refuses finished (409), missing (404) and keyless (401) requests; stale runs marked at startup. A mutation check (auth disabled) makes all 27 auth tests fail.

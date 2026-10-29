@@ -114,22 +114,25 @@ async def run_issue(
     profile: str = "python-pytest",
     work_dir: Path | None = None,
     on_event: Callable[[AgentEvent], None] | None = None,
+    should_stop: Callable[[], bool] | None = None,
 ) -> RunResult:
     """Run the whole workflow on a clone of `source`. Raises PatchError if the clone fails.
 
     The working copy is left in place (`result.workdir`); the caller removes it.
-    `on_event` receives every event as it is recorded.
+    `on_event` receives every event as it is recorded. `should_stop` is checked before
+    the baseline, before every model call and before every test run; once it returns True
+    the run ends `aborted` with the reason "cancelled". A step already running finishes first.
     """
     started = clock()
     wc = WorkingCopy.create(source, issue.number, work_dir)
     run = _Run(llm, wc, issue, sandbox, budgets or RunBudgets(), clock, profile, started,
-               on_event)
+               on_event, should_stop)
     return await run.execute()
 
 
 class _Run:
     def __init__(self, llm, wc, issue, sandbox, budgets, clock, profile, started,
-                 on_event=None) -> None:
+                 on_event=None, should_stop=None) -> None:
         self.llm = llm
         self.wc = wc
         self.issue = issue
@@ -138,6 +141,7 @@ class _Run:
         self.clock = clock
         self.profile = profile
         self.started = started
+        self.should_stop = should_stop or (lambda: False)
         self.events = EventLog(on_event)
         self.machine = StateMachine(self.events)
         self.dispatcher = Dispatcher(Workspace(wc.root))
@@ -158,6 +162,8 @@ class _Run:
         self.machine.transition(State.INVESTIGATE, "start")
         if self.profile == "auto":
             self.profile = detect_profile(self.wc.root)
+        if self.should_stop():
+            return self._cancel()
 
         try:
             install_s = self.sandbox.prepare(self.profile, self.wc.root)
@@ -184,10 +190,13 @@ class _Run:
             self.clock,
             events=self.events,
             machine=self.machine,
+            should_stop=self.should_stop,
         )
         self.steps += inv.steps
         self.in_tokens += inv.input_tokens
         self.out_tokens += inv.output_tokens
+        if inv.status is Status.CANCELLED:
+            return self._abort("cancelled")
         if inv.status is not Status.PLAN_READY:
             detail = f": {inv.error}" if inv.error else ""
             return self._abort(f"investigation stopped ({inv.status.value}){detail}")
@@ -214,6 +223,8 @@ class _Run:
                 return self._abort(outcome)
             patch, call_id = outcome
 
+            if self.should_stop():
+                return self._cancel()
             self.machine.transition(State.TEST, "patch applied")
             try:
                 execution = self.sandbox.run_tests(self.profile, self.wc.root)
@@ -276,6 +287,9 @@ class _Run:
     async def _request_patch(self, origin: State) -> str | tuple[PatchResult, str]:
         """Talk to the model until a patch is applied. Returns it, or a reason to abort."""
         while True:
+            if self.should_stop():
+                self.events.record("cancelled", state=self.machine.state.value)
+                return "cancelled"
             reason = self._budget_reason()
             if reason:
                 self.events.record("budget", state=self.machine.state.value, reason=reason)
@@ -392,6 +406,10 @@ class _Run:
             failed=len(execution.failed_tests),
             duration_s=round(execution.duration_s, 2),
         )
+
+    def _cancel(self) -> RunResult:
+        self.events.record("cancelled", state=self.machine.state.value)
+        return self._abort("cancelled")
 
     def _abort(self, reason: str) -> RunResult:
         self.events.record("abort", state=self.machine.state.value, reason=reason)

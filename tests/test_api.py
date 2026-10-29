@@ -104,14 +104,15 @@ def no_secrets(*texts):
 
 
 class Gate:
-    """Holds the run at its second sandbox call (after the patch) until released."""
+    """Holds the run at sandbox call `at` (default: the one after the patch) until released."""
 
-    def __init__(self):
+    def __init__(self, at=2):
+        self.at = at
         self.reached = threading.Event()
         self.release = threading.Event()
 
     def __call__(self, n):
-        if n == 2:
+        if n == self.at:
             self.reached.set()
             assert self.release.wait(15)
 
@@ -336,6 +337,30 @@ def test_a_running_run_cannot_be_approved(source):
     assert resp.status_code == 409 and writer.calls == []
     gate.release.set()
     wait_done(client, run_id)
+
+
+# --- cancel -------------------------------------------------------------------------------------
+
+def test_cancel_stops_a_running_run_at_its_next_step(source):
+    gate = Gate(at=1)  # hold the baseline test run
+    client = client_for(make_deps(sandbox=FakeSandbox(FAILING, PASSING, on_call=gate)))
+    run_id = start(client, source)
+    assert gate.reached.wait(15)
+    resp = client.post(f"/runs/{run_id}/cancel", headers=AUTH)
+    assert resp.status_code == 202 and resp.json() == {"id": run_id, "cancelling": True}
+    gate.release.set()
+    run = wait_done(client, run_id)
+    assert (run["status"], run["reason"]) == ("aborted", "cancelled")
+
+
+def test_cancel_refuses_runs_that_are_not_running(source):
+    client = client_for(make_deps())
+    run_id = start(client, source)
+    wait_done(client, run_id)
+    resp = client.post(f"/runs/{run_id}/cancel", headers=AUTH)
+    assert resp.status_code == 409 and "not running" in resp.json()["detail"]
+    assert client.post("/runs/999/cancel", headers=AUTH).status_code == 404
+    assert client.post(f"/runs/{run_id}/cancel").status_code == 401
 
 
 # --- restarts ------------------------------------------------------------------------------------

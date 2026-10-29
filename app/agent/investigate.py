@@ -40,6 +40,7 @@ class Status(StrEnum):
     BUDGET_EXHAUSTED = "budget_exhausted"
     ABORTED = "aborted"
     LLM_ERROR = "llm_error"
+    CANCELLED = "cancelled"
 
 
 @dataclass(frozen=True)
@@ -80,10 +81,12 @@ async def run_investigation(
     clock: Callable[[], float] = time.monotonic,
     events: EventLog | None = None,
     machine: StateMachine | None = None,
+    should_stop: Callable[[], bool] | None = None,
 ) -> InvestigationResult:
     """Run the read-only investigation and return a result with a plan, or why it stopped.
 
     Pass `events` and `machine` to continue a larger run; otherwise fresh ones are made.
+    `should_stop` is checked before every step; when it returns True the result is CANCELLED.
     """
     budgets = budgets or Budgets()
     events = events or EventLog()
@@ -125,6 +128,9 @@ async def run_investigation(
         return finish(Status.ABORTED, "too many invalid calls in a row")
 
     while True:
+        if should_stop is not None and should_stop():
+            events.record("cancelled", state=machine.state.value)
+            return finish(Status.CANCELLED, "cancelled")
         if counters["steps"] >= budgets.max_steps:
             return stop("step limit")
         if counters["in"] + counters["out"] >= budgets.max_tokens:

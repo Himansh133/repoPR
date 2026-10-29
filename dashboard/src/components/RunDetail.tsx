@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "re
 import { ApiError, getRun } from "../api";
 import type { Run } from "../types";
 import { ApprovePanel } from "./ApprovePanel";
+import { CancelPanel } from "./CancelPanel";
 import { DiffView } from "./DiffView";
 import { StatusBadge } from "./StatusBadge";
 import { TestResults } from "./TestResults";
@@ -54,6 +55,7 @@ export function RunDetail({ runId }: { runId: number }) {
           {run.cost === null ? "unknown" : run.cost + (run.cost_estimated ? " (estimated)" : "")}
         </p>
       </header>
+      <CancelPanel run={run} />
       <ApprovePanel run={run} onChange={load} />
       <div role="tablist" aria-label="Run details" className="flex gap-1 border-b border-border">
         {TABS.map((t, i) => (

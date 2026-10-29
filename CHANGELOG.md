@@ -30,6 +30,7 @@
 - `EventLog` listener (`on_event`) for live event streaming; `Database.fail_stale_runs`.
 - `dashboard/`: React + Vite + Tailwind UI served at `/ui/` with API key screen, issue form, run history, live timeline, diff viewer, test results and approve/reject panel; spec in `docs/specs/dashboard.md`.
 - `docs/demo.md`: demo script; `docs/images/`: dashboard screenshots and a demo GIF captured from stored runs.
+- Cancel a running run: `POST /runs/{id}/cancel`, a `should_stop` check at every step of the agent, and a **Cancel run** button in the dashboard. The run ends `aborted` with the reason `cancelled`.
 
 ### Changed
 - `README.md`: architecture diagram, screenshots and demo GIF, benchmark results, live draft PRs, current limitations and status.

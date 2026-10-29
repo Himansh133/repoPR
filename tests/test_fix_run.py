@@ -404,6 +404,43 @@ async def test_events_do_not_store_diffs_or_test_logs(source):
     assert {"baseline", "patch_proposed", "tests_run", "llm_call"} <= kinds
 
 
+# --- cancel -------------------------------------------------------------------
+
+async def test_cancel_before_the_baseline_runs_nothing(source):
+    llm = FakeLLM([])
+    sandbox = FakeSandbox()
+    result = await go(source, llm, sandbox, should_stop=lambda: True)
+    assert (result.status, result.reason) == (RunStatus.ABORTED, "cancelled")
+    assert result.state is State.ABORTED
+    assert sandbox.calls == [] and llm.calls == []
+    assert [e.kind for e in result.events].count("cancelled") == 1
+
+
+async def test_cancel_during_investigation_stops_at_the_next_step(source):
+    llm = FakeLLM(investigate_script())
+    sandbox = FakeSandbox(FAILING)
+    result = await go(source, llm, sandbox, should_stop=lambda: len(llm.calls) >= 1)
+    assert (result.status, result.reason) == (RunStatus.ABORTED, "cancelled")
+    assert len(llm.calls) == 1 and len(sandbox.calls) == 1  # baseline only
+    assert result.plan is None
+
+
+async def test_cancel_in_the_patch_phase_stops_before_the_next_model_call(source):
+    llm = FakeLLM([*investigate_script(), propose(CART, RIGHT)])
+    sandbox = FakeSandbox(FAILING, PASSING)
+    result = await go(source, llm, sandbox, should_stop=lambda: len(llm.calls) >= 2)
+    assert (result.status, result.reason) == (RunStatus.ABORTED, "cancelled")
+    assert len(llm.calls) == 2 and result.patches == []
+
+
+async def test_cancel_after_a_patch_skips_its_test_run(source):
+    llm = FakeLLM([*investigate_script(), propose(CART, RIGHT)])
+    sandbox = FakeSandbox(FAILING, PASSING)
+    result = await go(source, llm, sandbox, should_stop=lambda: len(llm.calls) >= 3)
+    assert (result.status, result.reason) == (RunStatus.ABORTED, "cancelled")
+    assert len(result.patches) == 1 and len(sandbox.calls) == 1
+
+
 async def test_setup_failure_raises(tmp_path):
     with pytest.raises(PatchError):
         await run_issue(FakeLLM([]), tmp_path, ISSUE, FakeSandbox(), RunBudgets())

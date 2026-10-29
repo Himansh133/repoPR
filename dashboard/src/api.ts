@@ -93,6 +93,10 @@ export function rejectRun(id: number, note: string): Promise<{ decision: string 
   return request(`/runs/${id}/reject`, { method: "POST", body: JSON.stringify({ note }) });
 }
 
+export function cancelRun(id: number): Promise<{ cancelling: boolean }> {
+  return request(`/runs/${id}/cancel`, { method: "POST" });
+}
+
 /** Streams a run's events (live, or replayed if finished) until the server ends the stream. */
 export async function streamEvents(
   id: number,

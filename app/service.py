@@ -220,8 +220,11 @@ def execute_run(
     deps: Deps,
     db: Database,
     on_event: Callable[[AgentEvent], None] | None = None,
+    should_stop: Callable[[], bool] | None = None,
 ) -> tuple[RunResult, str, RunRecord]:
     """Run the agent for a prepared run and save it. Returns (result, report, record).
+
+    `should_stop` lets another thread cancel the run (see `run_issue`).
 
     A failure is recorded on the run before it is raised: ServiceError if the repo could
     not be prepared, RunCrashed for anything unexpected. The temp clone is always removed.
@@ -237,6 +240,7 @@ def execute_run(
                     RunBudgets.from_settings(settings),
                     profile=settings.sandbox_profile,
                     on_event=on_event,
+                    should_stop=should_stop,
                 )
             )
         except PatchError as exc:

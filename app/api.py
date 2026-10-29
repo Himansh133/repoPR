@@ -108,6 +108,7 @@ class RunManager:
         self._lock = threading.Lock()
         self._busy = False
         self._current: int | None = None
+        self._stop = threading.Event()
         self._events: dict[int, list[dict[str, Any]]] = {}
         self._done: set[int] = set()
 
@@ -126,10 +127,19 @@ class RunManager:
         with self._lock:
             return self._current == run_id
 
+    def cancel(self, run_id: int) -> bool:
+        """Ask the current run to stop at its next step. False if `run_id` is not running."""
+        with self._lock:
+            if self._current != run_id:
+                return False
+            self._stop.set()
+            return True
+
     def start(self, prep: PreparedRun, settings: Settings, deps: Deps) -> None:
         """Run `prep` in a new thread. The slot must already be reserved."""
         with self._lock:
             self._current = prep.run_id
+            self._stop = threading.Event()
             self._events[prep.run_id] = []
             for old in [r for r in self._events if r in self._done][:-KEEP_LIVE_RUNS]:
                 self._events.pop(old, None)
@@ -142,9 +152,11 @@ class RunManager:
             with self._lock:
                 self._events[prep.run_id].append(_event_json(event))
 
+        with self._lock:
+            stop = self._stop
         db = open_db(deps)
         try:
-            execute_run(prep, settings, deps, db, on_event=listen)
+            execute_run(prep, settings, deps, db, on_event=listen, should_stop=stop.is_set)
         except Exception:  # already recorded on the run by execute_run
             pass
         finally:
@@ -346,6 +358,14 @@ def create_app(
             plan = plan_approval(db, deps, run_id, body.closes_issue)
             return {"id": run_id, "pr_url": open_draft_pr(db, deps, plan, body.note)}
         return with_db(go)
+
+    @api.post("/runs/{run_id}/cancel", status_code=202)
+    def cancel(run_id: int) -> dict[str, Any]:
+        limited(decide_limiter)
+        run = with_db(lambda db: get_run(db, run_id))
+        if not manager.cancel(run_id):
+            raise Conflict(f"Run #{run_id} is not running (it is {run.status})")
+        return {"id": run_id, "cancelling": True}
 
     @api.post("/runs/{run_id}/reject")
     def reject(run_id: int, body: RejectIn | None = None) -> dict[str, Any]:
