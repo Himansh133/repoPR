@@ -29,6 +29,10 @@
 - `app/service.py`: run and approval logic shared by the CLI and the API.
 - `EventLog` listener (`on_event`) for live event streaming; `Database.fail_stale_runs`.
 - `dashboard/`: React + Vite + Tailwind UI served at `/ui/` with API key screen, issue form, run history, live timeline, diff viewer, test results and approve/reject panel; spec in `docs/specs/dashboard.md`.
+- `docs/demo.md`: demo script; `docs/images/`: dashboard screenshots and a demo GIF captured from stored runs.
+
+### Changed
+- `README.md`: architecture diagram, screenshots and demo GIF, benchmark results, live draft PRs, current limitations and status.
 
 ### Fixed
 - `app/patch.py`: hunk header counts are recounted from the hunk body before validation, so a correct patch with miscounted headers is no longer rejected.
