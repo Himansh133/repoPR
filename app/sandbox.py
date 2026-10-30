@@ -29,7 +29,8 @@ MAX_LOG_CHARS = 20_000
 MAX_RAW_BYTES = 200_000
 MAX_FAILED_NAMES = 50
 MAX_NAME_CHARS = 200
-_FAILED_LINE = re.compile(r"^(?:FAILED|ERROR) (\S+)", re.MULTILINE)
+# A parametrized id may hold spaces ("test_x[a b] - msg"), so keep the brackets whole.
+_FAILED_LINE = re.compile(r"^(?:FAILED|ERROR) ([^\s\[]+\[.*?\](?= - |$)|\S+)", re.MULTILINE)
 # node --test (TAP and spec reporters), vitest/jest "FAIL <file> > <name>", jest "● <name>"
 _NODE_FAILED_LINE = re.compile(
     r"^(?:not ok \d+ - (.+)|\s*✖ (.+?)(?: \([\d.]+m?s\))?|\s*FAIL\s+(.+)|\s*● (.+))$",

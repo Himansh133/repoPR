@@ -42,6 +42,7 @@
 - `README.md`: architecture diagram, screenshots and demo GIF, benchmark results, live draft PRs, current limitations and status.
 
 ### Fixed
+- Failed pytest names keep spaces inside a parameter id (`test_x[a b]`). Before, the name stopped at the first space, so a parametrized relevant test never matched the baseline.
 - `repopilot eval` costs each model at its own price: `MODEL_PRICES` (JSON, per model) or, for `GMI_MODEL` only, `PRICE_IN_PER_M`/`PRICE_OUT_PER_M`. Before, every model was costed at `GMI_MODEL`'s prices; now a model with no price is refused by name unless `--allow-unpriced`.
 - `AGENT_MAX_REPAIRS` is limited to 0 to 2, so `.env` cannot lift the 3-cycle cap per issue.
 - `requirements.lock`: exact Python versions for CI and setup, so runs are repeatable.

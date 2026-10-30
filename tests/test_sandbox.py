@@ -207,6 +207,17 @@ def test_parse_failed_tests_dedupes_and_caps():
     assert parse_failed_tests("FAILED " + "a" * 500)[0] == "a" * 200
 
 
+def test_parse_failed_tests_keeps_spaces_in_parameter_ids():
+    log = (
+        "FAILED t.py::test_between[a BETWEEN .03 AND .06] - AssertionError: x\n"
+        "FAILED t.py::test_end[a b]\n"
+        "ERROR t.py::test_plain - boom\n"
+    )
+    assert parse_failed_tests(log) == [
+        "t.py::test_between[a BETWEEN .03 AND .06]", "t.py::test_end[a b]", "t.py::test_plain",
+    ]
+
+
 def test_results_are_stored_and_retrievable(workdir):
     sandbox, _ = make(raw(0, b"1 passed"))
     result = sandbox.run_tests("python-pytest", workdir)
