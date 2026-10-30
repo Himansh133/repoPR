@@ -1,0 +1,22 @@
+{
+  "model": "XiaomiMiMo/MiMo-V2.6-Flash",
+  "issue_id": "sqlparse-809-begin-end-semicolons",
+  "expected_outcome": "failed",
+  "status": "aborted",
+  "reason": "investigation stopped (llm_error): LLMTimeoutError: Request to the model timed out",
+  "baseline_relevant_failed": true,
+  "final_passed": false,
+  "resolved": false,
+  "patched": false,
+  "repairs_used": 0,
+  "steps": 5,
+  "input_tokens": 33307,
+  "output_tokens": 2349,
+  "cost": "0.0053207",
+  "cost_estimated": false,
+  "latency_s": 334.38575677200015,
+  "tool_ok": 11,
+  "tool_total": 11,
+  "error": null,
+  "run_id": 50
+}

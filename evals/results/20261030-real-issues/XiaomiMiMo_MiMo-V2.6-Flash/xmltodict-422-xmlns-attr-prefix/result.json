@@ -1,0 +1,22 @@
+{
+  "model": "XiaomiMiMo/MiMo-V2.6-Flash",
+  "issue_id": "xmltodict-422-xmlns-attr-prefix",
+  "expected_outcome": "passed",
+  "status": "aborted",
+  "reason": "investigation stopped (budget_exhausted)",
+  "baseline_relevant_failed": true,
+  "final_passed": false,
+  "resolved": false,
+  "patched": false,
+  "repairs_used": 0,
+  "steps": 9,
+  "input_tokens": 83875,
+  "output_tokens": 2139,
+  "cost": "0.01234142",
+  "cost_estimated": false,
+  "latency_s": 67.88670562300013,
+  "tool_ok": 17,
+  "tool_total": 17,
+  "error": null,
+  "run_id": 58
+}

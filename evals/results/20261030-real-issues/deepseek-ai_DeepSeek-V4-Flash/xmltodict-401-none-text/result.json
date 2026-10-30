@@ -1,0 +1,22 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4-Flash",
+  "issue_id": "xmltodict-401-none-text",
+  "expected_outcome": "passed",
+  "status": "aborted",
+  "reason": "investigation stopped (budget_exhausted)",
+  "baseline_relevant_failed": true,
+  "final_passed": false,
+  "resolved": false,
+  "patched": false,
+  "repairs_used": 0,
+  "steps": 12,
+  "input_tokens": 54507,
+  "output_tokens": 2096,
+  "cost": "0.00821786",
+  "cost_estimated": false,
+  "latency_s": 41.872967275000065,
+  "tool_ok": 18,
+  "tool_total": 20,
+  "error": null,
+  "run_id": 47
+}

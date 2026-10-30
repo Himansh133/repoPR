@@ -1,0 +1,22 @@
+{
+  "model": "XiaomiMiMo/MiMo-V2.6-Flash",
+  "issue_id": "sqlparse-601-leading-dot-float",
+  "expected_outcome": "passed",
+  "status": "aborted",
+  "reason": "investigation stopped (budget_exhausted)",
+  "baseline_relevant_failed": true,
+  "final_passed": false,
+  "resolved": false,
+  "patched": false,
+  "repairs_used": 0,
+  "steps": 11,
+  "input_tokens": 84592,
+  "output_tokens": 2006,
+  "cost": "0.01240456",
+  "cost_estimated": false,
+  "latency_s": 86.71153940600016,
+  "tool_ok": 20,
+  "tool_total": 20,
+  "error": null,
+  "run_id": 53
+}

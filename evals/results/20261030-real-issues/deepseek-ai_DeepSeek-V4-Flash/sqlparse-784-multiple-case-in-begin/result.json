@@ -1,0 +1,22 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4-Flash",
+  "issue_id": "sqlparse-784-multiple-case-in-begin",
+  "expected_outcome": "failed",
+  "status": "aborted",
+  "reason": "investigation stopped (budget_exhausted)",
+  "baseline_relevant_failed": true,
+  "final_passed": false,
+  "resolved": false,
+  "patched": false,
+  "repairs_used": 0,
+  "steps": 11,
+  "input_tokens": 79863,
+  "output_tokens": 12023,
+  "cost": "0.01454726",
+  "cost_estimated": false,
+  "latency_s": 102.65896074800003,
+  "tool_ok": 20,
+  "tool_total": 21,
+  "error": null,
+  "run_id": 42
+}

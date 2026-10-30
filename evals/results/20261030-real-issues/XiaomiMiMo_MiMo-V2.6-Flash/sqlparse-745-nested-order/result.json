@@ -1,0 +1,22 @@
+{
+  "model": "XiaomiMiMo/MiMo-V2.6-Flash",
+  "issue_id": "sqlparse-745-nested-order",
+  "expected_outcome": "passed",
+  "status": "aborted",
+  "reason": "investigation stopped (budget_exhausted)",
+  "baseline_relevant_failed": true,
+  "final_passed": false,
+  "resolved": false,
+  "patched": false,
+  "repairs_used": 0,
+  "steps": 11,
+  "input_tokens": 80415,
+  "output_tokens": 2572,
+  "cost": "0.01197826",
+  "cost_estimated": false,
+  "latency_s": 65.2513934829999,
+  "tool_ok": 20,
+  "tool_total": 20,
+  "error": null,
+  "run_id": 55
+}

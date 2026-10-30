@@ -1,0 +1,22 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4-Flash",
+  "issue_id": "sqlparse-809-begin-end-semicolons",
+  "expected_outcome": "failed",
+  "status": "aborted",
+  "reason": "investigation stopped (budget_exhausted)",
+  "baseline_relevant_failed": true,
+  "final_passed": false,
+  "resolved": false,
+  "patched": false,
+  "repairs_used": 0,
+  "steps": 10,
+  "input_tokens": 89738,
+  "output_tokens": 3608,
+  "cost": "0.01357356",
+  "cost_estimated": false,
+  "latency_s": 44.57548647500005,
+  "tool_ok": 15,
+  "tool_total": 17,
+  "error": null,
+  "run_id": 40
+}

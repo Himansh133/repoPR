@@ -1,0 +1,22 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4-Flash",
+  "issue_id": "sqlparse-601-leading-dot-float",
+  "expected_outcome": "passed",
+  "status": "aborted",
+  "reason": "investigation stopped (budget_exhausted)",
+  "baseline_relevant_failed": true,
+  "final_passed": false,
+  "resolved": false,
+  "patched": false,
+  "repairs_used": 0,
+  "steps": 8,
+  "input_tokens": 78942,
+  "output_tokens": 1533,
+  "cost": "0.01148112",
+  "cost_estimated": false,
+  "latency_s": 33.94171369100013,
+  "tool_ok": 16,
+  "tool_total": 16,
+  "error": null,
+  "run_id": 43
+}

@@ -1,0 +1,30 @@
+{
+  "started_at": "2026-10-30T18:11:47+00:00",
+  "models": [
+    "deepseek-ai/DeepSeek-V4-Flash",
+    "XiaomiMiMo/MiMo-V2.6-Flash"
+  ],
+  "issues": [
+    "sqlparse-826-begin-transaction",
+    "sqlparse-809-begin-end-semicolons",
+    "sqlparse-812-if-exists-in-begin",
+    "sqlparse-784-multiple-case-in-begin",
+    "sqlparse-601-leading-dot-float",
+    "sqlparse-332-real-name-dotted",
+    "sqlparse-745-nested-order",
+    "sqlparse-740-primary-key",
+    "xmltodict-401-none-text",
+    "xmltodict-422-xmlns-attr-prefix"
+  ],
+  "benchmark_sha256": "428bf4aa2316ae608743367de8850880d19f1564407b7d385cc83849070a6d7b",
+  "budgets": {
+    "max_steps": 24,
+    "max_tokens": 150000,
+    "timeout_s": 300.0,
+    "max_invalid_calls": 3,
+    "max_repairs": 2,
+    "investigation_steps": 12,
+    "investigation_tokens": 80000
+  },
+  "stopped_reason": null
+}

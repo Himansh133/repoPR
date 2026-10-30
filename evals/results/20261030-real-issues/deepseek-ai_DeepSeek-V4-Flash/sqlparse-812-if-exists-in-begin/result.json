@@ -1,0 +1,22 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4-Flash",
+  "issue_id": "sqlparse-812-if-exists-in-begin",
+  "expected_outcome": "passed",
+  "status": "aborted",
+  "reason": "investigation stopped (budget_exhausted)",
+  "baseline_relevant_failed": true,
+  "final_passed": false,
+  "resolved": false,
+  "patched": false,
+  "repairs_used": 0,
+  "steps": 9,
+  "input_tokens": 68097,
+  "output_tokens": 18103,
+  "cost": "0.01460242",
+  "cost_estimated": false,
+  "latency_s": 116.34390502899998,
+  "tool_ok": 14,
+  "tool_total": 14,
+  "error": null,
+  "run_id": 41
+}
