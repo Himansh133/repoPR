@@ -1,0 +1,19 @@
+Test part of https://github.com/andialbrecht/sqlparse/commit/46971e5a804b29e7dbd437155a8ceffab8ef1cd5
+(fix for https://github.com/andialbrecht/sqlparse/issues/740), applied on top of fc4b0beab89c5598d556572cb6db0165affb017b.
+Copied from andialbrecht/sqlparse, BSD-3-Clause licence. git apply skips these lines.
+
+diff --git a/tests/test_regressions.py b/tests/test_regressions.py
+index 961adc17..29cb502c 100644
+--- a/tests/test_regressions.py
++++ b/tests/test_regressions.py
+@@ -444,3 +444,9 @@ def test_copy_issue672():
+     p = sqlparse.parse('select * from foo')[0]
+     copied = copy.deepcopy(p)
+     assert str(p) == str(copied)
++
++
++def test_primary_key_issue740():
++    p = sqlparse.parse('PRIMARY KEY')[0]
++    assert len(p.tokens) == 1
++    assert p.tokens[0].ttype == T.Keyword
+\ No newline at end of file

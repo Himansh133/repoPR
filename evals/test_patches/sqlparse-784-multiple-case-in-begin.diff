@@ -1,0 +1,32 @@
+Test part of https://github.com/andialbrecht/sqlparse/commit/791e25de46f443597d99314cfd1a68217bcaf970
+(fix for https://github.com/andialbrecht/sqlparse/issues/784), applied on top of 073099d963e904ca45817e85d10bd81bf2b4373a.
+Copied from andialbrecht/sqlparse, BSD-3-Clause licence. git apply skips these lines.
+
+diff --git a/tests/files/multiple_case_in_begin.sql b/tests/files/multiple_case_in_begin.sql
+new file mode 100644
+index 00000000..6cbb3864
+--- /dev/null
++++ b/tests/files/multiple_case_in_begin.sql
+@@ -0,0 +1,8 @@
++CREATE TRIGGER mytrig
++AFTER UPDATE OF vvv ON mytable
++BEGIN
++    UPDATE aa
++        SET mycola = (CASE WHEN (A=1) THEN 2 END);
++    UPDATE bb
++        SET mycolb = (CASE WHEN (B=1) THEN 5 END);
++END;
+\ No newline at end of file
+diff --git a/tests/test_split.py b/tests/test_split.py
+index 90d2eaff..e2f1429e 100644
+--- a/tests/test_split.py
++++ b/tests/test_split.py
+@@ -203,3 +203,8 @@ def test_split_strip_semicolon_procedure(load_file):
+ def test_split_go(sql, num):  # issue762
+     stmts = sqlparse.split(sql)
+     assert len(stmts) == num
++
++
++def test_split_multiple_case_in_begin(load_file):  # issue784
++    stmts = sqlparse.split(load_file('multiple_case_in_begin.sql'))
++    assert len(stmts) == 1

@@ -1,0 +1,42 @@
+Test part of https://github.com/andialbrecht/sqlparse/commit/5ca50a2ee9b39e9efeea33e01f132d628144fb69
+(fix for https://github.com/andialbrecht/sqlparse/issues/826), applied on top of acd8e5817b5be5f9b9a7b159c1bacc45179f4e44.
+Copied from andialbrecht/sqlparse, BSD-3-Clause licence. git apply skips these lines.
+
+diff --git a/tests/test_split.py b/tests/test_split.py
+index 1511ab17..2b91b6a3 100644
+--- a/tests/test_split.py
++++ b/tests/test_split.py
+@@ -254,3 +254,33 @@ def test_split_begin_end_procedure():  # issue809
+     stmts = sqlparse.split(sql)
+     assert len(stmts) == 1
+     assert 'CREATE OR REPLACE PROCEDURE' in stmts[0]
++
++
++def test_split_begin_transaction():  # issue826
++    # BEGIN TRANSACTION should not be treated as a block start
++    sql = """BEGIN TRANSACTION;
++DELETE FROM "schema"."table_a" USING "table_a_temp" WHERE "schema"."table_a"."id" = "table_a_temp"."id";
++INSERT INTO "schema"."table_a" SELECT * FROM "table_a_temp";
++END TRANSACTION;"""
++    stmts = sqlparse.split(sql)
++    assert len(stmts) == 4
++    assert stmts[0] == 'BEGIN TRANSACTION;'
++    assert stmts[1].startswith('DELETE')
++    assert stmts[2].startswith('INSERT')
++    assert stmts[3] == 'END TRANSACTION;'
++
++
++def test_split_begin_transaction_formatted():  # issue826
++    # Test with formatted SQL (newlines between BEGIN and TRANSACTION)
++    sql = """BEGIN
++TRANSACTION;
++DELETE FROM "schema"."table_a" USING "table_a_temp" WHERE "schema"."table_a"."id" = "table_a_temp"."id";
++INSERT INTO "schema"."table_a" SELECT * FROM "table_a_temp";
++END
++TRANSACTION;"""
++    stmts = sqlparse.split(sql)
++    assert len(stmts) == 4
++    assert stmts[0] == 'BEGIN\nTRANSACTION;'
++    assert stmts[1].startswith('DELETE')
++    assert stmts[2].startswith('INSERT')
++    assert stmts[3] == 'END\nTRANSACTION;'

@@ -81,6 +81,16 @@ def test_shipped_seed_benchmark_is_valid():
         assert issue.expected_outcome in ("passed", "failed")
 
 
+def test_shipped_real_issue_benchmark_is_valid():
+    issues = load_benchmark(ROOT / "evals" / "real_issues.jsonl")
+    assert len(issues) == 10
+    for issue in issues:
+        assert issue.repo.startswith("https://github.com/") and len(issue.commit) == 40
+        patch = (ROOT / issue.test_patch).read_text()
+        assert issue.relevant_test.split("::")[0] in patch
+        assert "licence" in patch.split("diff --git")[0]
+
+
 @pytest.mark.parametrize("issue", load_benchmark(BENCH), ids=lambda i: i.id)
 def test_each_seed_issue_fails_only_its_relevant_test(issue, tmp_path):
     # A broken seed would count against the model, so check the starting point itself.

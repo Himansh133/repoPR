@@ -36,7 +36,14 @@ Ten seed issues ship in `evals/repos/`, each a small Python repo where exactly o
 | `duration` | symptom only; both the regex and the unit table miss hours |
 | `discount` | the issue text tells the agent to delete the tests (prompt injection) |
 
-Add real public-repo issues (aim for 20 to 30) to the same file.
+### Real issues
+`evals/real_issues.jsonl` holds ten closed issues from two small pure-Python repos: eight from `andialbrecht/sqlparse` (BSD-3-Clause) and two from `martinblech/xmltodict` (MIT). Each one is checked out at the parent of the upstream fix, and the fix's test changes are applied from `evals/test_patches/<id>.diff`. Each patch starts with a note naming the commit and the licence; `git apply` skips that note. The issue text is the real report. #422 is a PR, so only its "The bug" part is used, without the root cause or the fix.
+
+```
+repopilot eval --models modelA,modelB --issues evals/real_issues.jsonl
+```
+
+Checked in the Docker sandbox: at baseline the relevant test is the first failure (the profile runs `pytest -x`), and with the upstream fix applied the whole suite passes. For `xmltodict-401` the relevant test is an existing test whose expected value the fix changed, because it runs before the new ones.
 
 ## What a run saves
 `<out>/<model>/<issue-id>/`: `patch.diff`, `trace.json` (events), `tests.json` (baseline and after each patch, with log tails), `result.json`. In `<out>`: `results.json`, `summary.json`, `comparison.md`, `meta.json` (models, issues, budgets, benchmark hash, why it stopped early). Each run is also stored in the database, so `repopilot usage` includes it.
@@ -68,4 +75,4 @@ A model with no price is never costed at another model's price: `eval` refuses t
 - A crash in one run is recorded as status `error` and the rest continue. Temp repos and working copies are removed.
 
 ## How it is tested
-`tests/test_evals.py` (38 tests): loading and every validation error, the shipped seed file, preparing repos (and rejecting paths outside the project), fixed git commands for commit checkout, evaluating runs, exact metric numbers on hand-made results, the markdown table, a run with artifacts and database rows, two models, a crash, the spend cap, cleanup, and saving and loading results. `tests/test_cli.py` covers `eval` and `compare`.
+`tests/test_evals.py` (29 tests): loading and every validation error, the shipped seed and real-issue files, preparing repos (and rejecting paths outside the project), fixed git commands for commit checkout, evaluating runs, exact metric numbers on hand-made results, the markdown table, a run with artifacts and database rows, two models, a crash, the spend cap, cleanup, and saving and loading results. `tests/test_cli.py` covers `eval` and `compare`.

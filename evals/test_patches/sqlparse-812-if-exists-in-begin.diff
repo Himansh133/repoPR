@@ -1,0 +1,26 @@
+Test part of https://github.com/andialbrecht/sqlparse/commit/e92a032c81d51a6645b4f8c32470481894818ba0
+(fix for https://github.com/andialbrecht/sqlparse/issues/812), applied on top of 149bebf06c788e93a9b0dbee0e5abbc8e347b8e6.
+Copied from andialbrecht/sqlparse, BSD-3-Clause licence. git apply skips these lines.
+
+diff --git a/tests/test_split.py b/tests/test_split.py
+index e2f1429e..557f313b 100644
+--- a/tests/test_split.py
++++ b/tests/test_split.py
+@@ -208,3 +208,17 @@ def test_split_go(sql, num):  # issue762
+ def test_split_multiple_case_in_begin(load_file):  # issue784
+     stmts = sqlparse.split(load_file('multiple_case_in_begin.sql'))
+     assert len(stmts) == 1
++
++
++def test_split_if_exists_in_begin_end():  # issue812
++    # IF EXISTS should not be confused with control flow IF
++    sql = """CREATE TASK t1 AS
++BEGIN
++    CREATE OR REPLACE TABLE temp1;
++    DROP TABLE IF EXISTS temp1;
++END;
++EXECUTE TASK t1;"""
++    stmts = sqlparse.split(sql)
++    assert len(stmts) == 2
++    assert 'CREATE TASK' in stmts[0]
++    assert 'EXECUTE TASK' in stmts[1]
