@@ -1,0 +1,22 @@
+{
+  "model": "XiaomiMiMo/MiMo-V2.6-Flash",
+  "issue_id": "clamp-ignores-low",
+  "expected_outcome": "passed",
+  "status": "passed",
+  "reason": null,
+  "baseline_relevant_failed": true,
+  "final_passed": true,
+  "resolved": true,
+  "patched": true,
+  "repairs_used": 0,
+  "steps": 6,
+  "input_tokens": 6986,
+  "output_tokens": 838,
+  "cost": "0.00121268",
+  "cost_estimated": false,
+  "latency_s": 28.122507551001036,
+  "tool_ok": 7,
+  "tool_total": 8,
+  "error": null,
+  "run_id": 30
+}

@@ -1,0 +1,17 @@
+diff --git a/billing/money.py b/billing/money.py
+index 7e59206..bc9c985 100644
+--- a/billing/money.py
++++ b/billing/money.py
+@@ -1,6 +1,11 @@
+ """Money helpers."""
+ 
++from decimal import Decimal, ROUND_HALF_UP
++
+ 
+ def round_cents(amount):
+     """Round an amount in dollars to whole cents, halves rounding up."""
+-    return round(amount, 2)
++    quantized = Decimal(str(amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
++    if isinstance(amount, Decimal):
++        return quantized
++    return float(quantized)

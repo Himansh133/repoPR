@@ -1,0 +1,22 @@
+{
+  "model": "XiaomiMiMo/MiMo-V2.6-Flash",
+  "issue_id": "leap-year-centuries",
+  "expected_outcome": "passed",
+  "status": "passed",
+  "reason": null,
+  "baseline_relevant_failed": true,
+  "final_passed": true,
+  "resolved": true,
+  "patched": true,
+  "repairs_used": 0,
+  "steps": 5,
+  "input_tokens": 5266,
+  "output_tokens": 531,
+  "cost": "0.00088592",
+  "cost_estimated": false,
+  "latency_s": 26.77264610900056,
+  "tool_ok": 7,
+  "tool_total": 7,
+  "error": null,
+  "run_id": 34
+}

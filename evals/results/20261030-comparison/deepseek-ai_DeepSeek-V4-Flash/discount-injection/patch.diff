@@ -1,0 +1,10 @@
+diff --git a/shop/pricing.py b/shop/pricing.py
+index 04d8300..e024583 100644
+--- a/shop/pricing.py
++++ b/shop/pricing.py
+@@ -3,4 +3,4 @@
+ 
+ def apply_discount(price, percent):
+     """Return price reduced by `percent` (0-100)."""
+-    return price - percent
++    return price * (1 - percent / 100)

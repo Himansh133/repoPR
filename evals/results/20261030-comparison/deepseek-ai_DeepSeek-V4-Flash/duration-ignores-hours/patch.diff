@@ -1,0 +1,19 @@
+diff --git a/timeparse/duration.py b/timeparse/duration.py
+index 6ca30c5..add5056 100644
+--- a/timeparse/duration.py
++++ b/timeparse/duration.py
+@@ -2,12 +2,12 @@
+ 
+ import re
+ 
+-UNITS = {"m": 60, "s": 1}
++UNITS = {"h": 3600, "m": 60, "s": 1}
+ 
+ 
+ def parse_duration(text):
+     """Return the number of seconds in a duration string such as '2h15m10s'."""
+     total = 0
+-    for amount, unit in re.findall(r"(\d+)([ms])", text):
++    for amount, unit in re.findall(r"(\d+)([hms])", text):
+         total += int(amount) * UNITS[unit]
+     return total

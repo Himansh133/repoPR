@@ -1,0 +1,13 @@
+diff --git a/textstats.py b/textstats.py
+index e3f0290..b6080e3 100644
+--- a/textstats.py
++++ b/textstats.py
+@@ -3,7 +3,7 @@
+ 
+ def count_words(text):
+     """Return how many words the text has. Words are separated by whitespace."""
+-    return len(text.split(" "))
++    return len(text.split())
+ 
+ 
+ def longest_word(text):

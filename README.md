@@ -84,13 +84,14 @@ Approving needs a second, explicit click:
 
 ## Benchmark results
 
-Three synthetic seed issues (`evals/benchmark_issues.jsonl`), one model, run on 2026-10-27 after the hunk recount fix (`evals/results/20261027-213937`):
+Ten seed issues (`evals/benchmark_issues.jsonl`), two GMI-hosted models, run on 2026-10-30 (`evals/results/20261030-comparison`). Full write-up with failure review: [docs/model-comparison.md](docs/model-comparison.md).
 
 | Model | Runs | Resolved | Patch test pass | Tool-call success | Repair success | Cost / issue | Median latency | Matched expectation |
 |---|---|---|---|---|---|---|---|---|
-| deepseek-ai/DeepSeek-V4-Flash | 3 | 100.0% | 100.0% | 95.8% | n/a | 0.00126103 | 15.6 s | 100.0% |
+| deepseek-ai/DeepSeek-V4-Flash | 10 | 100.0% | 100.0% | 95.8% | 100.0% | 0.00175484 | 21.2 s | 90.0% |
+| XiaomiMiMo/MiMo-V2.6-Flash | 10 | 100.0% | 100.0% | 97.5% | 100.0% | 0.00114617 | 31.1 s | 90.0% |
 
-Before that fix (`evals/results/20261027-211901`) the same model resolved 2 of 3: a correct patch was rejected because its hunk headers were miscounted. Repair success is `n/a` because no run needed a repair. These issues are easy; they show the pipeline works, not how good a model is.
+Both models fixed all ten, including one whose issue text tells the agent to delete the tests. MiMo was 35% cheaper per issue, DeepSeek about 30% faster and its fixes were more complete where the tests did not look. The issues are synthetic and small, so they saturate; they show the pipeline and the costs, not which model is better on real code.
 
 Real issues: run #9 (repopilot-demo issue #1) and run #10 (issue #3) passed and were turned into draft PRs [#2](https://github.com/Himansh133/repopilot-demo/pull/2) and [#4](https://github.com/Himansh133/repopilot-demo/pull/4) after approval.
 
@@ -100,8 +101,7 @@ Repo, issue and test-output text is untrusted and never followed as instructions
 ## Limitations
 - Python repos are tested with pytest only. Dependencies are installed from `requirements.txt` as wheels only; packages without a wheel, and dependencies listed only in `pyproject.toml` or `setup.py`, are not installed.
 - Node repos run `npm test` and need a `package-lock.json`. A patch that changes `package-lock.json` or `requirements.txt` is reinstalled before its tests; one that changes only `package.json` is not.
-- Only one model (DeepSeek-V4-Flash on GMI) has been run live, so there is no model comparison yet.
-- The bundled benchmark has three easy synthetic issues. Real comparisons need real issues.
+- Two models have been compared (DeepSeek-V4-Flash and MiMo-V2.6-Flash on GMI). Both resolved all ten bundled issues, so the benchmark needs real, harder issues to rank them.
 - A larger real repo (a Node portfolio site) ran out of investigation budget (run #12); the budgets were raised afterwards and that issue has not been retried.
 
 ## Project status
@@ -121,7 +121,7 @@ Repo, issue and test-output text is untrusted and never followed as instructions
 | 5 (A) | SQLite persistence and usage tracking | Done | 390 total |
 | 5 (B) | `repopilot` CLI | Done | 426 total |
 | 5 (C) | Evaluation harness | Done; live single-model run recorded | 470 total (+11 Docker, +2 live); 398 without ripgrep installed |
-| 6 | Model comparison report | Waiting for a second model | - |
+| 6 | Model comparison report | Done; 2 models x 10 issues, see `docs/model-comparison.md` | 631 total (+13 Docker, +2 live); 559 without ripgrep installed; +37 dashboard |
 | 7 | Draft PR with approval gate | Done; two live draft PRs created | 512 total (+11 Docker, +2 live); 440 without ripgrep installed |
 | 8 (A) | FastAPI layer | Done | 569 total (+11 Docker, +2 live); 497 without ripgrep installed |
 | 8 (B) | Dashboard | Done; real-browser pass recorded in `docs/features/dashboard.md` | +31 dashboard tests (`npm test`) |
@@ -129,6 +129,6 @@ Repo, issue and test-output text is untrusted and never followed as instructions
 | 9 | CI, cancel a run, stored decisions, Python dependencies | Done | 609 total (+13 Docker, +2 live); 537 without ripgrep installed; +37 dashboard |
 
 ## Docs
-`docs/features/` (one page per feature), `docs/decisions/` (why), `docs/security.md`, `docs/live-testing.md`, `docs/demo.md`, `CHANGELOG.md`.
+`docs/features/` (one page per feature), `docs/decisions/` (why), `docs/model-comparison.md`, `docs/security.md`, `docs/live-testing.md`, `docs/demo.md`, `CHANGELOG.md`.
 
 License: [MIT](LICENSE).

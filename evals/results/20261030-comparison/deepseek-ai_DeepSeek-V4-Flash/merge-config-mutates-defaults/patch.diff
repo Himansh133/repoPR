@@ -1,0 +1,13 @@
+diff --git a/settings/merge.py b/settings/merge.py
+index 2839bf2..51c03a0 100644
+--- a/settings/merge.py
++++ b/settings/merge.py
+@@ -5,7 +5,7 @@ DEFAULTS = {"server": {"host": "localhost", "port": 8000}, "debug": False}
+ 
+ def merge(base, override):
+     """Return base with override applied, merging nested dicts."""
+-    result = base
++    result = dict(base)
+     for key, value in override.items():
+         if isinstance(value, dict) and isinstance(result.get(key), dict):
+             result[key] = merge(result[key], value)

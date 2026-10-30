@@ -1,0 +1,14 @@
+diff --git a/shop/cart.py b/shop/cart.py
+index 0789fc7..56d8ee8 100644
+--- a/shop/cart.py
++++ b/shop/cart.py
+@@ -3,7 +3,8 @@
+ 
+ def average_price(prices):
+     """Return the average price of the items in the cart."""
+-    return sum(prices) / len(prices)
++    # An empty cart has an average price of 0.
++    return sum(prices) / len(prices) if prices else 0
+ 
+ 
+ def total(prices):

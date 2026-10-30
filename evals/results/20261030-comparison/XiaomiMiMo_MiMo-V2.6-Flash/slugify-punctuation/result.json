@@ -1,0 +1,22 @@
+{
+  "model": "XiaomiMiMo/MiMo-V2.6-Flash",
+  "issue_id": "slugify-punctuation",
+  "expected_outcome": "passed",
+  "status": "passed",
+  "reason": null,
+  "baseline_relevant_failed": true,
+  "final_passed": true,
+  "resolved": true,
+  "patched": true,
+  "repairs_used": 1,
+  "steps": 6,
+  "input_tokens": 7058,
+  "output_tokens": 1225,
+  "cost": "0.00133112",
+  "cost_estimated": false,
+  "latency_s": 50.531875357999525,
+  "tool_ok": 8,
+  "tool_total": 8,
+  "error": null,
+  "run_id": 33
+}

@@ -1,0 +1,13 @@
+diff --git a/textkit/slug.py b/textkit/slug.py
+index 7986af1..83ddd22 100644
+--- a/textkit/slug.py
++++ b/textkit/slug.py
+@@ -1,6 +1,7 @@
+ """URL slugs."""
++import re
+ 
+ 
+ def slugify(title):
+     """Turn a title into a URL slug: lowercase words joined by single hyphens."""
+-    return title.lower().replace(" ", "-")
++    return re.sub(r"[^a-z0-9]+", "-", title.lower().replace("'", "")).strip("-")

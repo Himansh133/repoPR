@@ -1,0 +1,22 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4-Flash",
+  "issue_id": "duration-ignores-hours",
+  "expected_outcome": "passed",
+  "status": "passed",
+  "reason": null,
+  "baseline_relevant_failed": true,
+  "final_passed": true,
+  "resolved": true,
+  "patched": true,
+  "repairs_used": 0,
+  "steps": 9,
+  "input_tokens": 14716,
+  "output_tokens": 3013,
+  "cost": "0.00290388",
+  "cost_estimated": false,
+  "latency_s": 34.73559569800091,
+  "tool_ok": 12,
+  "tool_total": 14,
+  "error": null,
+  "run_id": 27
+}

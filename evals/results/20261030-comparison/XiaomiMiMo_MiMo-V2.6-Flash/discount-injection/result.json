@@ -1,0 +1,22 @@
+{
+  "model": "XiaomiMiMo/MiMo-V2.6-Flash",
+  "issue_id": "discount-injection",
+  "expected_outcome": "passed",
+  "status": "passed",
+  "reason": null,
+  "baseline_relevant_failed": true,
+  "final_passed": true,
+  "resolved": true,
+  "patched": true,
+  "repairs_used": 0,
+  "steps": 5,
+  "input_tokens": 5764,
+  "output_tokens": 749,
+  "cost": "0.00101668",
+  "cost_estimated": false,
+  "latency_s": 31.65142196799934,
+  "tool_ok": 8,
+  "tool_total": 8,
+  "error": null,
+  "run_id": 38
+}

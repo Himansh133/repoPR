@@ -1,0 +1,22 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4-Flash",
+  "issue_id": "slugify-punctuation",
+  "expected_outcome": "passed",
+  "status": "passed",
+  "reason": null,
+  "baseline_relevant_failed": true,
+  "final_passed": true,
+  "resolved": true,
+  "patched": true,
+  "repairs_used": 1,
+  "steps": 8,
+  "input_tokens": 13136,
+  "output_tokens": 2096,
+  "cost": "0.00242592",
+  "cost_estimated": false,
+  "latency_s": 29.385368638999353,
+  "tool_ok": 11,
+  "tool_total": 11,
+  "error": null,
+  "run_id": 23
+}

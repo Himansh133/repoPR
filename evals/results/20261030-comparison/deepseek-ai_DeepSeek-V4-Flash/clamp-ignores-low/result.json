@@ -1,0 +1,22 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4-Flash",
+  "issue_id": "clamp-ignores-low",
+  "expected_outcome": "passed",
+  "status": "passed",
+  "reason": null,
+  "baseline_relevant_failed": true,
+  "final_passed": true,
+  "resolved": true,
+  "patched": true,
+  "repairs_used": 0,
+  "steps": 6,
+  "input_tokens": 8331,
+  "output_tokens": 906,
+  "cost": "0.00142002",
+  "cost_estimated": false,
+  "latency_s": 18.731812580999758,
+  "tool_ok": 7,
+  "tool_total": 8,
+  "error": null,
+  "run_id": 20
+}

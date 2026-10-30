@@ -1,0 +1,22 @@
+{
+  "model": "XiaomiMiMo/MiMo-V2.6-Flash",
+  "issue_id": "merge-config-mutates-defaults",
+  "expected_outcome": "passed",
+  "status": "passed",
+  "reason": null,
+  "baseline_relevant_failed": true,
+  "final_passed": true,
+  "resolved": true,
+  "patched": true,
+  "repairs_used": 0,
+  "steps": 6,
+  "input_tokens": 7508,
+  "output_tokens": 1090,
+  "cost": "0.00135632",
+  "cost_estimated": false,
+  "latency_s": 47.63847241400072,
+  "tool_ok": 9,
+  "tool_total": 9,
+  "error": null,
+  "run_id": 35
+}

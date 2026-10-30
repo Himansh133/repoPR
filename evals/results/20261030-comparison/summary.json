@@ -1,0 +1,24 @@
+{
+  "deepseek-ai/DeepSeek-V4-Flash": {
+    "runs": 10,
+    "patch_test_pass_rate": 1.0,
+    "issue_resolution_rate": 1.0,
+    "tool_call_success_rate": 0.9583333333333334,
+    "repair_success_rate": 1.0,
+    "cost_per_issue": "0.00175484",
+    "unknown_cost_runs": 0,
+    "median_latency_s": 21.221123905500463,
+    "expectation_match_rate": 0.9
+  },
+  "XiaomiMiMo/MiMo-V2.6-Flash": {
+    "runs": 10,
+    "patch_test_pass_rate": 1.0,
+    "issue_resolution_rate": 1.0,
+    "tool_call_success_rate": 0.9753086419753086,
+    "repair_success_rate": 1.0,
+    "cost_per_issue": "0.00114617",
+    "unknown_cost_runs": 0,
+    "median_latency_s": 31.12684250050006,
+    "expectation_match_rate": 0.9
+  }
+}

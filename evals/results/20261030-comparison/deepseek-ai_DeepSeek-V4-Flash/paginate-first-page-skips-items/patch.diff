@@ -1,0 +1,11 @@
+diff --git a/pager/bounds.py b/pager/bounds.py
+index a996181..7c2f4b3 100644
+--- a/pager/bounds.py
++++ b/pager/bounds.py
+@@ -3,5 +3,5 @@
+ 
+ def page_bounds(page, per_page):
+     """Return (start, end) slice indexes for a 1-based page number."""
+-    start = page * per_page
++    start = (page - 1) * per_page
+     return start, start + per_page

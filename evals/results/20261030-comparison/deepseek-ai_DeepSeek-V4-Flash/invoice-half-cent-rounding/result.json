@@ -1,0 +1,22 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4-Flash",
+  "issue_id": "invoice-half-cent-rounding",
+  "expected_outcome": "failed",
+  "status": "passed",
+  "reason": null,
+  "baseline_relevant_failed": true,
+  "final_passed": true,
+  "resolved": true,
+  "patched": true,
+  "repairs_used": 0,
+  "steps": 5,
+  "input_tokens": 8094,
+  "output_tokens": 2799,
+  "cost": "0.00191688",
+  "cost_estimated": false,
+  "latency_s": 27.278038173000823,
+  "tool_ok": 9,
+  "tool_total": 9,
+  "error": null,
+  "run_id": 26
+}

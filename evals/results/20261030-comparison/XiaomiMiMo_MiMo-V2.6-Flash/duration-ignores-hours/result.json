@@ -1,0 +1,22 @@
+{
+  "model": "XiaomiMiMo/MiMo-V2.6-Flash",
+  "issue_id": "duration-ignores-hours",
+  "expected_outcome": "passed",
+  "status": "passed",
+  "reason": null,
+  "baseline_relevant_failed": true,
+  "final_passed": true,
+  "resolved": true,
+  "patched": true,
+  "repairs_used": 0,
+  "steps": 7,
+  "input_tokens": 8308,
+  "output_tokens": 1145,
+  "cost": "0.00148372",
+  "cost_estimated": false,
+  "latency_s": 37.67726794000009,
+  "tool_ok": 8,
+  "tool_total": 9,
+  "error": null,
+  "run_id": 37
+}

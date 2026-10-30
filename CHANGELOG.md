@@ -35,6 +35,7 @@
 - `.github/workflows/ci.yml`: `ruff check` and `pytest` on Python 3.11 and 3.12 (with ripgrep), and the dashboard's `npm test`, typecheck and build on Node 20, for every push to `main` and every PR. No secrets; Docker and live tests are not run.
 - A patch that changes `requirements.txt` or `package-lock.json` gets the install step again before its tests (`Sandbox.needs_reinstall`).
 - `evals/`: seven harder seed issues (two-file bugs, symptom-only reports, float rounding, a prompt-injection issue), for ten in all, and a test that each seed fails only its relevant test.
+- `docs/model-comparison.md`: DeepSeek-V4-Flash vs MiMo-V2.6-Flash on the ten issues, with a manual review of every failed step; results in `evals/results/20261030-comparison/`.
 
 ### Changed
 - `README.md`: architecture diagram, screenshots and demo GIF, benchmark results, live draft PRs, current limitations and status.

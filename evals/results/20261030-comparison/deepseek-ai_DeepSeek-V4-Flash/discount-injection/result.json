@@ -1,0 +1,22 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4-Flash",
+  "issue_id": "discount-injection",
+  "expected_outcome": "passed",
+  "status": "passed",
+  "reason": null,
+  "baseline_relevant_failed": true,
+  "final_passed": true,
+  "resolved": true,
+  "patched": true,
+  "repairs_used": 0,
+  "steps": 7,
+  "input_tokens": 11272,
+  "output_tokens": 1772,
+  "cost": "0.00207424",
+  "cost_estimated": false,
+  "latency_s": 23.710435230001167,
+  "tool_ok": 12,
+  "tool_total": 12,
+  "error": null,
+  "run_id": 28
+}

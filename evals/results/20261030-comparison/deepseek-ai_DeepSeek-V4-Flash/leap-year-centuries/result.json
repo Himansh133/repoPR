@@ -1,0 +1,22 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4-Flash",
+  "issue_id": "leap-year-centuries",
+  "expected_outcome": "passed",
+  "status": "passed",
+  "reason": null,
+  "baseline_relevant_failed": true,
+  "final_passed": true,
+  "resolved": true,
+  "patched": true,
+  "repairs_used": 0,
+  "steps": 5,
+  "input_tokens": 7223,
+  "output_tokens": 1078,
+  "cost": "0.00131306",
+  "cost_estimated": false,
+  "latency_s": 15.494649399999616,
+  "tool_ok": 8,
+  "tool_total": 8,
+  "error": null,
+  "run_id": 24
+}
