@@ -4,6 +4,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+import sys
 from decimal import Decimal
 from pathlib import Path
 
@@ -73,11 +74,25 @@ def test_loads_valid_file_and_skips_blank_lines(tmp_path):
 
 def test_shipped_seed_benchmark_is_valid():
     issues = load_benchmark(BENCH)
-    assert len(issues) == 3
+    assert len(issues) == 10
     for issue in issues:
         repo = ROOT / issue.repo.removeprefix("dir:")
         assert repo.is_dir() and list(repo.glob("tests/test_*.py"))
-        assert issue.expected_outcome == "passed"
+        assert issue.expected_outcome in ("passed", "failed")
+
+
+@pytest.mark.parametrize("issue", load_benchmark(BENCH), ids=lambda i: i.id)
+def test_each_seed_issue_fails_only_its_relevant_test(issue, tmp_path):
+    # A broken seed would count against the model, so check the starting point itself.
+    repo = tmp_path / "repo"
+    shutil.copytree(ROOT / issue.repo.removeprefix("dir:"), repo,
+                    ignore=shutil.ignore_patterns("__pycache__"))
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "-rf", "-p", "no:cacheprovider"],
+        cwd=repo, capture_output=True, text=True, timeout=60,
+    )
+    failed = [ln.split()[1] for ln in proc.stdout.splitlines() if ln.startswith("FAILED ")]
+    assert failed == [issue.relevant_test]
 
 
 @pytest.mark.parametrize(

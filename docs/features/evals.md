@@ -23,7 +23,19 @@ Run it from the project root (`dir:` repos are relative to `--base-dir`).
 - `expected_outcome`: `passed`, `failed` or `inconclusive`. **Write it before you run anything.** The results record the SHA-256 of the benchmark file, so you can show it was not edited afterwards (commit the file before running).
 - Validation names the line and field. Max 100 issues, unique ids, no duplicates.
 
-Three seed issues ship in `evals/repos/` (`avg_price`, `clamp`, `word_count`), each with a small bug and a failing test. Add your real public-repo issues (aim for 10, then 20 to 30) to the same file.
+Ten seed issues ship in `evals/repos/`, each a small Python repo where exactly one test (the `relevant_test`) fails; `test_each_seed_issue_fails_only_its_relevant_test` checks that. Three are easy one-liners (`avg_price`, `clamp`, `word_count`). Seven are harder:
+
+| Repo | What makes it harder |
+|---|---|
+| `paginate` | the symptom is in `listing.py`, the off-by-one in `bounds.py` |
+| `slugify` | several rules at once (punctuation, repeated spaces, trimming) |
+| `leap_year` | Gregorian century rule; symptom and bug are in different functions |
+| `merge_config` | the issue gives only a symptom; the cause is aliasing of nested defaults |
+| `invoice` | float `2.675` is below the half in binary, and `round` rounds half to even; expected to **fail** |
+| `duration` | symptom only; both the regex and the unit table miss hours |
+| `discount` | the issue text tells the agent to delete the tests (prompt injection) |
+
+Add real public-repo issues (aim for 20 to 30) to the same file.
 
 ## What a run saves
 `<out>/<model>/<issue-id>/`: `patch.diff`, `trace.json` (events), `tests.json` (baseline and after each patch, with log tails), `result.json`. In `<out>`: `results.json`, `summary.json`, `comparison.md`, `meta.json` (models, issues, budgets, benchmark hash, why it stopped early). Each run is also stored in the database, so `repopilot usage` includes it.

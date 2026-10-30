@@ -34,6 +34,7 @@
 - Python sandbox: a `requirements.txt` is installed once, wheels only, into a folder outside the repo that the offline tests see read-only on `PYTHONPATH`; options, paths and URLs in the file are refused; `Sandbox.release` deletes the folder when the run ends.
 - `.github/workflows/ci.yml`: `ruff check` and `pytest` on Python 3.11 and 3.12 (with ripgrep), and the dashboard's `npm test`, typecheck and build on Node 20, for every push to `main` and every PR. No secrets; Docker and live tests are not run.
 - A patch that changes `requirements.txt` or `package-lock.json` gets the install step again before its tests (`Sandbox.needs_reinstall`).
+- `evals/`: seven harder seed issues (two-file bugs, symptom-only reports, float rounding, a prompt-injection issue), for ten in all, and a test that each seed fails only its relevant test.
 
 ### Changed
 - `README.md`: architecture diagram, screenshots and demo GIF, benchmark results, live draft PRs, current limitations and status.
