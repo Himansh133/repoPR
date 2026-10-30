@@ -6,7 +6,7 @@
 - `calculate_cost(...)` returns `(I * P_in + O * P_out) / 1,000,000` as a `Decimal`.
 
 ## How to use
-Copy `.env.example` to `.env` and fill in `GMI_API_KEY` and `GMI_MODEL` (exact ID from your GMI catalog). Add `PRICE_IN_PER_M` and `PRICE_OUT_PER_M` (per million tokens) from your account to get cost numbers.
+Copy `.env.example` to `.env` and fill in `GMI_API_KEY` and `GMI_MODEL` (exact ID from your GMI catalog). Add `PRICE_IN_PER_M` and `PRICE_OUT_PER_M` (per million tokens) from your account to get cost numbers. For `repopilot eval` with other models, add `MODEL_PRICES` (see `evals.md`).
 
 ```python
 settings = Settings()

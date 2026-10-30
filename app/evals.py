@@ -391,7 +391,7 @@ async def run_eval(
     budgets: RunBudgets,
     *,
     base_dir: Path | None = None,
-    prices: tuple[Decimal | None, Decimal | None] = (None, None),
+    prices_for: Callable[[str], tuple[Decimal | None, Decimal | None]] = lambda model: (None, None),
     db: Database | None = None,
     spend_cap: Decimal | None = None,
     benchmark_path: Path | None = None,
@@ -416,7 +416,7 @@ async def run_eval(
             results.append(
                 await _run_one(
                     issue, index, model, llm_for, sandbox_factory, out_dir, budgets,
-                    base_dir, prices, db, profile,
+                    base_dir, prices_for(model), db, profile,
                 )
             )
         if stopped:

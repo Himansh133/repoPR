@@ -47,6 +47,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv("GITHUB_TOKEN", GH_TOKEN)
     monkeypatch.setenv("PRICE_IN_PER_M", "2")
     monkeypatch.setenv("PRICE_OUT_PER_M", "8")
+    monkeypatch.setenv("MODEL_PRICES", '{"m1": ["2", "8"], "m2": ["1", "4"]}')
     monkeypatch.setenv("DB_PATH", str(tmp_path / "cli.db"))
     monkeypatch.setattr("app.tools.search.shutil.which", lambda name: None)
     monkeypatch.chdir(tmp_path)  # so no stray .env is read
@@ -453,8 +454,28 @@ def test_eval_bad_inputs(tmp_path):
 def test_eval_needs_prices_unless_allowed(tmp_path, monkeypatch):
     monkeypatch.delenv("PRICE_IN_PER_M")
     monkeypatch.delenv("PRICE_OUT_PER_M")
-    code, _, err = run_cli(eval_args(tmp_path, models="m1"), eval_deps({}))
-    assert code == 5 and "PRICE_IN_PER_M" in err
+    code, _, err = run_cli(eval_args(tmp_path, models="test-model"), eval_deps({}))
+    assert code == 5 and "test-model" in err and "PRICE_IN_PER_M" in err
+
+
+def test_eval_never_costs_another_model_at_gmi_model_prices(tmp_path):
+    # PRICE_* are set for GMI_MODEL, but "m3" has no MODEL_PRICES entry: refused, nothing runs.
+    code, _, err = run_cli(eval_args(tmp_path, models="m1,m3"), eval_deps({}))
+    assert code == 5 and "No prices for m3," in err and "MODEL_PRICES" in err
+    assert not (tmp_path / "evalout").exists()
+
+
+def test_eval_costs_each_model_at_its_own_price(tmp_path):
+    from tests.test_evals import BENCH
+
+    one = tmp_path / "one.jsonl"
+    one.write_text(BENCH.read_text().splitlines()[0] + "\n")
+    argv = eval_args(tmp_path)
+    argv[argv.index(str(BENCH))] = str(one)
+    assert run_cli(argv, eval_deps({}))[0] == 0
+    results = json.loads((tmp_path / "evalout" / "results.json").read_text())
+    cost = {r["model"]: r["cost"] for r in results}
+    assert cost == {"m1": "0.0018", "m2": "0.0009"}  # 300 in, 150 out at 2/8 and 1/4
 
 
 def test_compare_prints_saved_results(tmp_path):

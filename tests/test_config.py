@@ -11,7 +11,7 @@ from app.config import Settings
 def _clear(monkeypatch):
     for name in (
         "GMI_API_KEY", "GMI_MODEL", "GMI_BASE_URL", "GITHUB_TOKEN",
-        "PRICE_IN_PER_M", "PRICE_OUT_PER_M",
+        "PRICE_IN_PER_M", "PRICE_OUT_PER_M", "MODEL_PRICES",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -74,3 +74,25 @@ def test_repairs_are_capped_at_two_so_an_issue_gets_at_most_three_patch_cycles(
     for ok in ("0", "1", "2"):
         monkeypatch.setenv("AGENT_MAX_REPAIRS", ok)
         assert Settings(_env_file=None).agent_max_repairs == int(ok)
+
+
+def test_prices_for_each_model(monkeypatch):
+    _clear(monkeypatch)
+    monkeypatch.setenv("GMI_API_KEY", "k")
+    monkeypatch.setenv("GMI_MODEL", "a/main")
+    monkeypatch.setenv("PRICE_IN_PER_M", "0.14")
+    monkeypatch.setenv("PRICE_OUT_PER_M", "0.28")
+    monkeypatch.setenv("MODEL_PRICES", '{"b/other": ["0.05", "0.25"]}')
+    s = Settings(_env_file=None)
+    assert s.prices_for("a/main") == (Decimal("0.14"), Decimal("0.28"))
+    assert s.prices_for("b/other") == (Decimal("0.05"), Decimal("0.25"))
+    assert s.prices_for("c/unknown") == (None, None)  # never GMI_MODEL's prices
+
+
+def test_model_prices_must_be_pairs(monkeypatch):
+    _clear(monkeypatch)
+    monkeypatch.setenv("GMI_API_KEY", "k")
+    monkeypatch.setenv("GMI_MODEL", "m")
+    monkeypatch.setenv("MODEL_PRICES", '{"b/other": ["0.05"]}')
+    with pytest.raises(ValidationError, match="model_prices"):
+        Settings(_env_file=None)

@@ -49,3 +49,14 @@ class Settings(BaseSettings):
 
     price_in_per_m: Decimal | None = None
     price_out_per_m: Decimal | None = None
+    # Prices of other models for `repopilot eval`, as JSON: {"org/model": [in_per_m, out_per_m]}.
+    model_prices: dict[str, tuple[Decimal, Decimal]] = {}
+
+    def prices_for(self, model: str) -> tuple[Decimal | None, Decimal | None]:
+        """Prices of `model`: its `MODEL_PRICES` entry, else the PRICE_* pair if it is
+        GMI_MODEL, else unknown. Another model is never costed at GMI_MODEL's prices."""
+        if model in self.model_prices:
+            return self.model_prices[model]
+        if model == self.gmi_model:
+            return (self.price_in_per_m, self.price_out_per_m)
+        return (None, None)

@@ -41,6 +41,13 @@ Three seed issues ship in `evals/repos/` (`avg_price`, `clamp`, `word_count`), e
 
 A metric with nothing to measure prints `n/a`, not 0%.
 
+## Prices per model
+Each model is costed at its own price. `PRICE_IN_PER_M` and `PRICE_OUT_PER_M` belong to `GMI_MODEL`; other models need an entry in `MODEL_PRICES` (USD per million tokens, in and out):
+```
+MODEL_PRICES={"XiaomiMiMo/MiMo-V2.6-Flash": ["0.14", "0.28"]}
+```
+A model with no price is never costed at another model's price: `eval` refuses to start and names it, unless `--allow-unpriced` (its cost is then unknown, not 0). The prices come from your account's model catalog (`GET /v1/models` returns `pricing` per token).
+
 ## Safety and cost
 - Runs go one at a time, through the same sandbox and budgets as `repopilot run`.
 - `--max-runs` (default 30) refuses to start a benchmark larger than you meant.

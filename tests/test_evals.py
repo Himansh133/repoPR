@@ -335,7 +335,7 @@ async def run_it(tmp_path, models, llm_for, issues=None, **kw):
     out = tmp_path / "out"
     results = await run_eval(
         issues, models, llm_for, lambda: FakeSandbox(FAILING, PASSING), out,
-        RunBudgets(), base_dir=ROOT, prices=(Decimal("2"), Decimal("8")),
+        RunBudgets(), base_dir=ROOT, prices_for=lambda model: (Decimal("2"), Decimal("8")),
         benchmark_path=BENCH, **kw,
     )
     return results, out

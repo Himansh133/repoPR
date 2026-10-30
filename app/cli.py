@@ -245,15 +245,16 @@ def _cmd_run(args, deps: Deps, out: TextIO, err: TextIO) -> int:
 
 def _cmd_eval(args, deps: Deps, out: TextIO) -> int:
     settings = load_settings(deps)
-    prices = (settings.price_in_per_m, settings.price_out_per_m)
-    if any(p is None for p in prices) and not (settings.allow_unpriced or args.allow_unpriced):
-        raise CliError(
-            "Prices are not set (PRICE_IN_PER_M, PRICE_OUT_PER_M), so cost cannot be measured. "
-            "Set them, or pass --allow-unpriced."
-        )
     models = list(dict.fromkeys(m.strip() for m in args.models.split(",") if m.strip()))
     if not models:
         raise CliError("--models needs at least one model ID")
+    unpriced = [m for m in models if None in settings.prices_for(m)]
+    if unpriced and not (settings.allow_unpriced or args.allow_unpriced):
+        raise CliError(
+            f"No prices for {', '.join(unpriced)}, so cost cannot be measured. Set "
+            "PRICE_IN_PER_M and PRICE_OUT_PER_M for GMI_MODEL, or MODEL_PRICES for other "
+            "models, or pass --allow-unpriced."
+        )
     try:
         issues = load_benchmark(args.issues)
     except EvalError as exc:
@@ -280,7 +281,7 @@ def _cmd_eval(args, deps: Deps, out: TextIO) -> int:
                 out_dir,
                 budgets,
                 base_dir=Path(args.base_dir),
-                prices=prices,
+                prices_for=settings.prices_for,
                 db=db,
                 spend_cap=settings.daily_spend_cap,
                 benchmark_path=Path(args.issues),
