@@ -21,6 +21,7 @@ Run it from the project root (`dir:` repos are relative to `--base-dir`).
 - `repo`: `dir:<path>` (a folder in this project, turned into a fresh git repo for each run; `commit` must be null) or `https://github.com/<owner>/<repo>` with a `commit` (7-40 hex characters, fetched with fixed git commands).
 - `relevant_test`: the test that shows the issue is fixed.
 - `expected_outcome`: `passed`, `failed` or `inconclusive`. **Write it before you run anything.** The results record the SHA-256 of the benchmark file, so you can show it was not edited afterwards (commit the file before running).
+- `test_patch` (optional): a `.diff` file inside the project, applied with `git apply` on top of `commit` and committed as `benchmark tests` before the baseline run. For a real issue this is the test part of the upstream fix: the test does not exist before the fix, so without it nothing fails at baseline. The agent sees these tests, as it does for the seed issues. A patch that is missing, outside the project (symlinks included) or does not apply stops that run with an error.
 - Validation names the line and field. Max 100 issues, unique ids, no duplicates.
 
 Ten seed issues ship in `evals/repos/`, each a small Python repo where exactly one test (the `relevant_test`) fails; `test_each_seed_issue_fails_only_its_relevant_test` checks that. Three are easy one-liners (`avg_price`, `clamp`, `word_count`). Seven are harder:

@@ -51,6 +51,8 @@ class BenchIssue:
     relevant_test: str
     expected_outcome: str
     notes: str
+    # Tests from the upstream fix, applied on top of `commit` before the baseline run.
+    test_patch: str | None = None
 
 
 @dataclass(frozen=True)
@@ -156,12 +158,19 @@ def load_benchmark(path: str | Path) -> list[BenchIssue]:
             raise bad("relevant_test must be a non-empty string")
         if data["expected_outcome"] not in OUTCOMES:
             raise bad(f"expected_outcome must be one of {', '.join(OUTCOMES)}")
+        test_patch = data.get("test_patch")
+        if test_patch is not None and not (
+            isinstance(test_patch, str) and test_patch.endswith(".diff")
+            and not Path(test_patch).is_absolute() and ".." not in Path(test_patch).parts
+        ):
+            raise bad("test_patch must be a relative path to a .diff file inside the project")
         seen.add(data["id"])
         issues.append(
             BenchIssue(
                 id=data["id"], repo=repo, commit=commit, title=issue["title"].strip(),
                 body=str(issue.get("body") or ""), relevant_test=data["relevant_test"].strip(),
                 expected_outcome=data["expected_outcome"], notes=str(data.get("notes") or ""),
+                test_patch=test_patch,
             )
         )
         if len(issues) > MAX_ISSUES:
@@ -171,10 +180,10 @@ def load_benchmark(path: str | Path) -> list[BenchIssue]:
     return issues
 
 
-def _git(*args: str) -> None:
+def _git(*args: str, stdin: str | None = None) -> None:
     try:
         proc = subprocess.run(
-            ["git", *args], capture_output=True, text=True, timeout=GIT_TIMEOUT_S
+            ["git", *args], input=stdin, capture_output=True, text=True, timeout=GIT_TIMEOUT_S
         )
     except (OSError, subprocess.TimeoutExpired):
         raise EvalError("git failed or timed out") from None
@@ -201,9 +210,9 @@ def prepare_repo(issue: BenchIssue, base_dir: Path) -> Path:
     """Make a fresh git repo for an issue in a temp folder. The caller removes `path.parent`."""
     holder = Path(tempfile.mkdtemp(prefix="eval-", dir=default_work_dir()))
     dest = holder / "repo"
+    base = Path(base_dir).resolve()
     try:
         if issue.repo.startswith("dir:"):
-            base = Path(base_dir).resolve()
             src = (base / issue.repo[4:]).resolve()
             if not src.is_relative_to(base):
                 raise EvalError(f"Benchmark repo path is outside the project: {issue.repo}")
@@ -212,14 +221,37 @@ def prepare_repo(issue: BenchIssue, base_dir: Path) -> Path:
             shutil.copytree(src, dest, ignore=_IGNORE)
             _git("-C", str(dest), "init", "-q", "-b", "main")
             _git("-C", str(dest), "add", "-A")
-            _git("-C", str(dest), "-c", "user.name=RepoPilot", "-c",
-                 "user.email=repopilot@users.noreply.github.com", "commit", "-q", "-m", "seed")
+            _commit(dest, "seed")
         else:
             checkout_commit(issue.repo, issue.commit or "", dest)
+        if issue.test_patch:
+            _apply_test_patch(base, issue.test_patch, dest)
     except Exception:
         shutil.rmtree(holder, ignore_errors=True)
         raise
     return dest
+
+
+def _commit(dest: Path, message: str) -> None:
+    _git("-C", str(dest), "-c", "user.name=RepoPilot", "-c",
+         "user.email=repopilot@users.noreply.github.com", "-c", "core.hooksPath=/dev/null",
+         "commit", "-q", "-m", message)
+
+
+def _apply_test_patch(base: Path, rel: str, dest: Path) -> None:
+    """Apply and commit the benchmark's test patch, so the agent starts from a clean tree."""
+    patch = (base / rel).resolve()
+    if not patch.is_relative_to(base):
+        raise EvalError(f"test_patch is outside the project: {rel}")
+    if not patch.is_file():
+        raise EvalError(f"test_patch not found: {rel}")
+    text = patch.read_text()
+    try:
+        _git("-C", str(dest), "apply", "--check", "-", stdin=text)
+    except EvalError as exc:
+        raise EvalError(f"test_patch does not apply: {rel} ({exc})") from None
+    _git("-C", str(dest), "apply", "--index", "-", stdin=text)
+    _commit(dest, "benchmark tests")
 
 
 # --- evaluating one run -------------------------------------------------------

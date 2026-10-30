@@ -113,6 +113,10 @@ def test_each_seed_issue_fails_only_its_relevant_test(issue, tmp_path):
         (line(repo="https://github.com/o/r", commit="zzzz"), "commit"),
         (line(repo="https://evil.example/o/r", commit="abc1234"), "repo"),
         (line(repo="ftp://x"), "repo"),
+        (line(test_patch="/etc/x.diff"), "test_patch"),
+        (line(test_patch="evals/../../x.diff"), "test_patch"),
+        (line(test_patch="evals/tests.txt"), "test_patch"),
+        (line(test_patch=7), "test_patch"),
     ],
 )
 def test_invalid_entries_rejected_with_a_helpful_message(tmp_path, bad, needle):
@@ -163,6 +167,53 @@ def test_prepare_dir_repo_rejects_paths_outside_the_base(tmp_path):
     missing = BenchIssue("x", "dir:evals/repos/nope", None, "t", "b", REL, "passed", "")
     with pytest.raises(EvalError, match="not found"):
         prepare_repo(missing, ROOT)
+
+
+TEST_PATCH = """\
+diff --git a/tests/test_extra.py b/tests/test_extra.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_extra.py
+@@ -0,0 +1,5 @@
++from shop.cart import average_price
++
++
++def test_average_of_one_item():
++    assert average_price([5]) == 5
+"""
+
+
+def test_prepare_applies_and_commits_the_test_patch(tmp_path):
+    (tmp_path / "evals").mkdir()
+    shutil.copytree(ROOT / "evals" / "repos" / "avg_price", tmp_path / "evals" / "avg_price")
+    (tmp_path / "evals" / "extra.diff").write_text(TEST_PATCH)
+    issue = bench_issue(repo="dir:evals/avg_price", test_patch="evals/extra.diff")
+    path = prepare_repo(issue, tmp_path)
+    try:
+        assert "test_average_of_one_item" in (path / "tests" / "test_extra.py").read_text()
+        git = ["git", "-C", str(path)]
+        log = subprocess.run([*git, "log", "--format=%s"], capture_output=True, text=True)
+        assert log.stdout.split("\n")[:2] == ["benchmark tests", "seed"]
+        status = subprocess.run([*git, "status", "--porcelain"], capture_output=True, text=True)
+        assert status.stdout == ""  # the agent starts from a clean tree
+    finally:
+        shutil.rmtree(path.parent, ignore_errors=True)
+
+
+def test_prepare_rejects_bad_test_patches(tmp_path):
+    proj = tmp_path / "proj"
+    shutil.copytree(ROOT / "evals" / "repos" / "avg_price", proj / "evals" / "avg_price")
+    (proj / "evals" / "wrong.diff").write_text(TEST_PATCH.replace("/dev/null", "a/nope.py"))
+    (tmp_path / "outside.diff").write_text(TEST_PATCH)
+    (proj / "evals" / "link.diff").symlink_to(tmp_path / "outside.diff")
+    for patch, needle in (
+        ("evals/missing.diff", "not found"),
+        ("evals/wrong.diff", "apply"),
+        ("evals/link.diff", "outside"),
+    ):
+        issue = bench_issue(repo="dir:evals/avg_price", test_patch=patch)
+        with pytest.raises(EvalError, match=needle):
+            prepare_repo(issue, proj)
 
 
 def test_checkout_commit_uses_fixed_git_commands(tmp_path, monkeypatch):

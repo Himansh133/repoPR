@@ -36,6 +36,7 @@
 - A patch that changes `requirements.txt` or `package-lock.json` gets the install step again before its tests (`Sandbox.needs_reinstall`).
 - `evals/`: seven harder seed issues (two-file bugs, symptom-only reports, float rounding, a prompt-injection issue), for ten in all, and a test that each seed fails only its relevant test.
 - `docs/model-comparison.md`: DeepSeek-V4-Flash vs MiMo-V2.6-Flash on the ten issues, with a manual review of every failed step; results in `evals/results/20261030-comparison/`.
+- Benchmark entries take an optional `test_patch`: the upstream fix's tests, applied and committed on top of `commit` before the baseline, so real GitHub issues can be benchmarked.
 
 ### Changed
 - `README.md`: architecture diagram, screenshots and demo GIF, benchmark results, live draft PRs, current limitations and status.
